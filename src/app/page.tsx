@@ -150,6 +150,19 @@ export default function Home() {
     setModalOpen(true);
   }, []);
 
+  const handleDateChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      let v = e.target.value.replace(/[^0-9/]/g, "");
+      const prev = formDate;
+      if (v.length === 2 && !v.includes("/") && prev.length < 2) {
+        v += "/";
+      }
+      if (v.length > 5) v = v.slice(0, 5);
+      setFormDate(v);
+    },
+    [formDate]
+  );
+
   const [error, setError] = useState("");
   const [confirmDelete, setConfirmDelete] = useState<{
     board: "winner" | "loser";
@@ -161,10 +174,20 @@ export default function Home() {
   const handleSubmit = useCallback(async () => {
     setError("");
     const amt = parseFloat(formAmount);
-    if (!formDate.trim() || !formName.trim() || isNaN(amt) || amt === 0) {
-      setError("Please fill in all fields with a non-zero amount.");
+    const dateParts = formDate.trim().split("/");
+    if (
+      dateParts.length !== 2 ||
+      !dateParts[0] ||
+      !dateParts[1] ||
+      !formName.trim() ||
+      isNaN(amt) ||
+      amt === 0
+    ) {
+      setError("Please fill in all fields (date as M/DD).");
       return;
     }
+
+    const dateStr = `${parseInt(dateParts[0])}/${parseInt(dateParts[1])}`;
 
     setSubmitting(true);
     try {
@@ -173,7 +196,7 @@ export default function Home() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           board,
-          date: formDate.trim(),
+          date: dateStr,
           name: formName.trim(),
           amount: amt,
         }),
@@ -348,9 +371,11 @@ export default function Home() {
               <input
                 className="modal-input"
                 type="text"
-                placeholder="MM/DD/YY"
+                inputMode="numeric"
+                placeholder="M/DD"
                 value={formDate}
-                onChange={(e) => setFormDate(e.target.value)}
+                onChange={handleDateChange}
+                maxLength={5}
               />
             </label>
 
