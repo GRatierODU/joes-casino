@@ -129,11 +129,9 @@ export async function POST(request: Request) {
     amount: board === "winner" ? Math.abs(amount) : -Math.abs(amount),
   };
 
-  const updated = [...existing, entry]
-    .sort((a, b) =>
-      board === "winner" ? b.amount - a.amount : a.amount - b.amount
-    )
-    .slice(0, MAX_ROWS);
+  const updated = [...existing, entry].sort((a, b) =>
+    board === "winner" ? b.amount - a.amount : a.amount - b.amount
+  );
 
   await redis.set(key, updated);
 
