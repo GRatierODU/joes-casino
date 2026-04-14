@@ -150,9 +150,15 @@ export default function Home() {
     setModalOpen(true);
   }, []);
 
+  const [error, setError] = useState("");
+
   const handleSubmit = useCallback(async () => {
+    setError("");
     const amt = parseFloat(formAmount);
-    if (!formDate.trim() || !formName.trim() || isNaN(amt) || amt === 0) return;
+    if (!formDate.trim() || !formName.trim() || isNaN(amt) || amt === 0) {
+      setError("Please fill in all fields with a non-zero amount.");
+      return;
+    }
 
     setSubmitting(true);
     try {
@@ -171,7 +177,14 @@ export default function Home() {
         setWinnerList(data.winners);
         setLoserList(data.losers);
         setModalOpen(false);
+      } else {
+        const errBody = await res.text();
+        console.error("API error:", res.status, errBody);
+        setError("Failed to save. Please try again.");
       }
+    } catch (e) {
+      console.error("Network error:", e);
+      setError("Network error. Please try again.");
     } finally {
       setSubmitting(false);
     }
@@ -318,6 +331,8 @@ export default function Home() {
                 onChange={(e) => setFormAmount(e.target.value)}
               />
             </label>
+
+            {error && <p style={{ color: "#ef4444", fontSize: "0.85rem", margin: "0 0 0.5rem" }}>{error}</p>}
 
             <div className="modal-actions">
               <button
