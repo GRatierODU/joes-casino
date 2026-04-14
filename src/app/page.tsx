@@ -150,19 +150,6 @@ export default function Home() {
     setModalOpen(true);
   }, []);
 
-  const handleDateChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      let v = e.target.value.replace(/[^0-9/]/g, "");
-      const prev = formDate;
-      if (v.length === 2 && !v.includes("/") && prev.length < 2) {
-        v += "/";
-      }
-      if (v.length > 5) v = v.slice(0, 5);
-      setFormDate(v);
-    },
-    [formDate]
-  );
-
   const [error, setError] = useState("");
   const [confirmDelete, setConfirmDelete] = useState<{
     board: "winner" | "loser";
@@ -300,7 +287,7 @@ export default function Home() {
             <p className="board-label board-label-green">All-Time Standings</p>
             <h2 className="board-title">Top Winners</h2>
             <ol className="board-list">
-              {winnerList.map((p, i) => (
+              {winnerList.slice(0, 25).map((p, i) => (
                 <li key={`w-${i}`} className="board-row">
                   <span className="board-date">{p.date}</span>
                   <span className="board-name">{p.name}</span>
@@ -321,7 +308,7 @@ export default function Home() {
             <p className="board-label board-label-red">All-Time Standings</p>
             <h2 className="board-title">Top Losers</h2>
             <ol className="board-list">
-              {loserList.map((p, i) => (
+              {loserList.slice(0, 25).map((p, i) => (
                 <li key={`l-${i}`} className="board-row">
                   <span className="board-date">{p.date}</span>
                   <span className="board-name">{p.name}</span>
@@ -371,11 +358,9 @@ export default function Home() {
               <input
                 className="modal-input"
                 type="text"
-                inputMode="numeric"
-                placeholder="M/DD"
+                placeholder="MM/DD"
                 value={formDate}
-                onChange={handleDateChange}
-                maxLength={5}
+                onChange={(e) => setFormDate(e.target.value)}
               />
             </label>
 
