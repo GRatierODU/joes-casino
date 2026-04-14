@@ -443,7 +443,7 @@ export default function Home() {
       <section className="closer-section">
         <RevealSection>
           <p className="closer-label">&clubs; &diams; &hearts; &spades;</p>
-          <h2 className="closer-title">See you next Thursday.</h2>
+          <h2 className="closer-title">See you next time.</h2>
           <p className="closer-sub">25¢/50¢ · 50¢ Ante · Seven-Deuce</p>
         </RevealSection>
       </section>
