@@ -146,3 +146,44 @@ export async function POST(request: Request) {
     losers: board === "loser" ? updated : other,
   });
 }
+
+export async function DELETE(request: Request) {
+  const redis = getRedis();
+  if (!redis) {
+    return NextResponse.json(
+      { error: "Database not configured" },
+      { status: 503 }
+    );
+  }
+
+  const { board, index } = (await request.json()) as {
+    board: string;
+    index: number;
+  };
+
+  if (!board || typeof index !== "number" || index < 0) {
+    return NextResponse.json({ error: "Invalid input" }, { status: 400 });
+  }
+
+  const key = board === "winner" ? "joes-winners" : "joes-losers";
+  const existing =
+    (await redis.get<Entry[]>(key)) ??
+    (board === "winner" ? defaultWinners : defaultLosers);
+
+  if (index >= existing.length) {
+    return NextResponse.json({ error: "Index out of range" }, { status: 400 });
+  }
+
+  const updated = existing.filter((_, i) => i !== index);
+  await redis.set(key, updated);
+
+  const otherKey = board === "winner" ? "joes-losers" : "joes-winners";
+  const other =
+    (await redis.get<Entry[]>(otherKey)) ??
+    (board === "winner" ? defaultLosers : defaultWinners);
+
+  return NextResponse.json({
+    winners: board === "winner" ? updated : other,
+    losers: board === "loser" ? updated : other,
+  });
+}

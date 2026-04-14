@@ -151,6 +151,12 @@ export default function Home() {
   }, []);
 
   const [error, setError] = useState("");
+  const [confirmDelete, setConfirmDelete] = useState<{
+    board: "winner" | "loser";
+    index: number;
+    entry: Entry;
+  } | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const handleSubmit = useCallback(async () => {
     setError("");
@@ -189,6 +195,31 @@ export default function Home() {
       setSubmitting(false);
     }
   }, [board, formDate, formName, formAmount]);
+
+  const handleDelete = useCallback(async () => {
+    if (!confirmDelete) return;
+    setDeleting(true);
+    try {
+      const res = await fetch("/api/leaderboard", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          board: confirmDelete.board,
+          index: confirmDelete.index,
+        }),
+      });
+      if (res.ok) {
+        const data: { winners: Entry[]; losers: Entry[] } = await res.json();
+        setWinnerList(data.winners);
+        setLoserList(data.losers);
+        setConfirmDelete(null);
+      }
+    } catch (e) {
+      console.error("Delete error:", e);
+    } finally {
+      setDeleting(false);
+    }
+  }, [confirmDelete]);
 
   return (
     <>
@@ -251,6 +282,13 @@ export default function Home() {
                   <span className="board-date">{p.date}</span>
                   <span className="board-name">{p.name}</span>
                   <span className="board-amount green">{fmt(p.amount)}</span>
+                  <button
+                    className="board-delete"
+                    onClick={() => setConfirmDelete({ board: "winner", index: i, entry: p })}
+                    aria-label={`Remove ${p.name}`}
+                  >
+                    &times;
+                  </button>
                 </li>
               ))}
             </ol>
@@ -265,6 +303,13 @@ export default function Home() {
                   <span className="board-date">{p.date}</span>
                   <span className="board-name">{p.name}</span>
                   <span className="board-amount red">{fmt(p.amount)}</span>
+                  <button
+                    className="board-delete"
+                    onClick={() => setConfirmDelete({ board: "loser", index: i, entry: p })}
+                    aria-label={`Remove ${p.name}`}
+                  >
+                    &times;
+                  </button>
                 </li>
               ))}
             </ol>
@@ -347,6 +392,37 @@ export default function Home() {
                 disabled={submitting}
               >
                 {submitting ? "Adding..." : "Add to Board"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ───── CONFIRM DELETE MODAL ───── */}
+      {confirmDelete && (
+        <div className="modal-backdrop" onClick={() => setConfirmDelete(null)}>
+          <div className="modal-card confirm-card" onClick={(e) => e.stopPropagation()}>
+            <h3 className="modal-title">Remove Entry?</h3>
+            <p className="confirm-detail">
+              <span className="confirm-name">{confirmDelete.entry.name}</span>
+              <span className="confirm-amount">
+                {fmt(confirmDelete.entry.amount)}
+              </span>
+              <span className="confirm-date">{confirmDelete.entry.date}</span>
+            </p>
+            <div className="modal-actions">
+              <button
+                className="modal-btn modal-btn-cancel"
+                onClick={() => setConfirmDelete(null)}
+              >
+                Cancel
+              </button>
+              <button
+                className="modal-btn modal-btn-delete"
+                onClick={handleDelete}
+                disabled={deleting}
+              >
+                {deleting ? "Removing..." : "Remove"}
               </button>
             </div>
           </div>
