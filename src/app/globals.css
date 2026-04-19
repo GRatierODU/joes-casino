@@ -571,6 +571,25 @@ body {
   min-height: 100vh;
   background: var(--background);
   padding-bottom: 4rem;
+  position: relative;
+  overflow: hidden;
+}
+
+.tables-suits {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.tables-page .suit-5 { top: 55%; left: 5%; animation-delay: 2s; }
+.tables-page .suit-6 { top: 65%; right: 8%; animation-delay: 5.5s; }
+
+.tables-nav,
+.tables-header,
+.tables-grid {
+  position: relative;
+  z-index: 1;
 }
 
 .tables-nav {

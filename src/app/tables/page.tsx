@@ -151,6 +151,14 @@ export default function TablesPage() {
 
   return (
     <div className="tables-page">
+      <div className="tables-suits" aria-hidden="true">
+        <span className="suit suit-1">&spades;</span>
+        <span className="suit suit-2">&hearts;</span>
+        <span className="suit suit-3">&diams;</span>
+        <span className="suit suit-4">&clubs;</span>
+        <span className="suit suit-5">&hearts;</span>
+        <span className="suit suit-6">&spades;</span>
+      </div>
       <nav className="tables-nav">
         <Link href="/" className="tables-nav-link">
           &larr; Leaderboard
