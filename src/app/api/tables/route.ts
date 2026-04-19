@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 
 type Seat = { name: string; buyin: number } | null;
 type TablesState = { tables: [Seat[], Seat[]] };
+type SessionRecord = { name: string; buyin: number; cashout: number; table: number };
 
 const EMPTY_STATE: TablesState = {
   tables: [Array(8).fill(null), Array(8).fill(null)],
@@ -79,6 +80,27 @@ export async function POST(request: Request) {
     }
     current.buyin += buyin;
   } else if (action === "leave") {
+    const current = state.tables[table][seat];
+    if (current) {
+      const { cashout } = body as { cashout: number };
+      const co = typeof cashout === "number" && cashout >= 0 ? cashout : 0;
+      const today = new Date().toISOString().slice(0, 10);
+      const dateKey = `joes-sessions:${today}`;
+      const record: SessionRecord = {
+        name: current.name,
+        buyin: current.buyin,
+        cashout: co,
+        table,
+      };
+      const existing = (await redis.get<SessionRecord[]>(dateKey)) ?? [];
+      existing.push(record);
+      await redis.set(dateKey, existing);
+      const dates = (await redis.get<string[]>("joes-session-dates")) ?? [];
+      if (!dates.includes(today)) {
+        dates.unshift(today);
+        await redis.set("joes-session-dates", dates);
+      }
+    }
     state.tables[table][seat] = null;
   } else {
     return NextResponse.json({ error: "Unknown action" }, { status: 400 });

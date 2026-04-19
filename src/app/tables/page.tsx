@@ -10,11 +10,13 @@ const EMPTY: TablesState = {
   tables: [Array(8).fill(null), Array(8).fill(null)],
 };
 
+type SessionRecord = { name: string; buyin: number; cashout: number; table: number };
+
 type ModalState =
   | { kind: "sit"; table: number; seat: number }
   | { kind: "player"; table: number; seat: number; name: string; buyin: number }
   | { kind: "rebuy"; table: number; seat: number; name: string }
-  | { kind: "leave"; table: number; seat: number; name: string }
+  | { kind: "leave"; table: number; seat: number; name: string; buyin: number }
   | null;
 
 export default function TablesPage() {
@@ -22,8 +24,14 @@ export default function TablesPage() {
   const [modal, setModal] = useState<ModalState>(null);
   const [formName, setFormName] = useState("");
   const [formBuyin, setFormBuyin] = useState("");
+  const [formCashout, setFormCashout] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [historyDates, setHistoryDates] = useState<string[]>([]);
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [sessions, setSessions] = useState<SessionRecord[]>([]);
 
   const fetchState = useCallback(() => {
     fetch("/api/tables")
@@ -115,6 +123,12 @@ export default function TablesPage() {
 
   const handleLeave = useCallback(async () => {
     if (!modal || modal.kind !== "leave") return;
+    setError("");
+    const co = parseFloat(formCashout);
+    if (isNaN(co) || co < 0) {
+      setError("Enter a valid cashout amount.");
+      return;
+    }
     setSubmitting(true);
     try {
       const res = await fetch("/api/tables", {
@@ -124,18 +138,21 @@ export default function TablesPage() {
           action: "leave",
           table: modal.table,
           seat: modal.seat,
+          cashout: co,
         }),
       });
       if (res.ok) {
         setState(await res.json());
         setModal(null);
+      } else {
+        setError("Failed to cash out.");
       }
     } catch {
-      /* ignore */
+      setError("Network error.");
     } finally {
       setSubmitting(false);
     }
-  }, [modal]);
+  }, [modal, formCashout]);
 
   const openSit = (table: number, seat: number) => {
     setFormName("");
@@ -176,6 +193,21 @@ export default function TablesPage() {
             ? `${totalPlayers} player${totalPlayers !== 1 ? "s" : ""} at the table${totalPlayers > 1 ? "s" : ""}`
             : "No active games right now"}
         </p>
+        <button
+          className="history-btn"
+          onClick={async () => {
+            setHistoryOpen(true);
+            setSelectedDate(null);
+            setSessions([]);
+            try {
+              const res = await fetch("/api/sessions");
+              const data = await res.json();
+              setHistoryDates(data.dates ?? []);
+            } catch { /* ignore */ }
+          }}
+        >
+          Session History
+        </button>
       </header>
 
       <div className="tables-grid">
@@ -287,8 +319,9 @@ export default function TablesPage() {
               <button
                 className="player-option-btn player-option-cashout"
                 onClick={() => {
+                  setFormCashout("");
                   setError("");
-                  setModal({ kind: "leave", table: modal.table, seat: modal.seat, name: modal.name });
+                  setModal({ kind: "leave", table: modal.table, seat: modal.seat, name: modal.name, buyin: modal.buyin });
                 }}
               >
                 Cash Out
@@ -340,17 +373,125 @@ export default function TablesPage() {
         </div>
       )}
 
-      {/* ───── CASHOUT CONFIRMATION ───── */}
-      {modal?.kind === "leave" && (
-        <div className="modal-backdrop" onClick={() => setModal(null)}>
+      {/* ───── HISTORY MODAL ───── */}
+      {historyOpen && (
+        <div className="modal-backdrop" onClick={() => setHistoryOpen(false)}>
           <div
-            className="modal-card confirm-card"
+            className="modal-card history-card"
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 className="modal-title">Cash Out?</h3>
-            <p className="confirm-detail">
-              <span className="confirm-name">{modal.name}</span>
+            <div className="history-header">
+              <h3 className="modal-title">Session History</h3>
+              <button
+                className="history-close"
+                onClick={() => setHistoryOpen(false)}
+              >
+                &times;
+              </button>
+            </div>
+
+            {!selectedDate ? (
+              <div className="history-dates">
+                {historyDates.length === 0 ? (
+                  <p className="history-empty">No sessions recorded yet.</p>
+                ) : (
+                  historyDates.map((d) => (
+                    <button
+                      key={d}
+                      className="history-date-btn"
+                      onClick={async () => {
+                        setSelectedDate(d);
+                        try {
+                          const res = await fetch(`/api/sessions?date=${d}`);
+                          const data = await res.json();
+                          setSessions(data.sessions ?? []);
+                        } catch { /* ignore */ }
+                      }}
+                    >
+                      {new Date(d + "T12:00:00").toLocaleDateString("en-US", {
+                        weekday: "short",
+                        month: "short",
+                        day: "numeric",
+                        year: "numeric",
+                      })}
+                    </button>
+                  ))
+                )}
+              </div>
+            ) : (
+              <div className="history-sessions">
+                <button
+                  className="history-back"
+                  onClick={() => {
+                    setSelectedDate(null);
+                    setSessions([]);
+                  }}
+                >
+                  &larr; All Dates
+                </button>
+                <p className="history-date-label">
+                  {new Date(selectedDate + "T12:00:00").toLocaleDateString("en-US", {
+                    weekday: "long",
+                    month: "long",
+                    day: "numeric",
+                    year: "numeric",
+                  })}
+                </p>
+                {sessions.length === 0 ? (
+                  <p className="history-empty">No sessions for this date.</p>
+                ) : (
+                  <div className="session-list">
+                    <div className="session-row session-row-header">
+                      <span className="session-col-name">Name</span>
+                      <span className="session-col">Buy-in</span>
+                      <span className="session-col">Cashout</span>
+                      <span className="session-col">P/L</span>
+                    </div>
+                    {sessions.map((s, i) => {
+                      const pl = s.cashout - s.buyin;
+                      return (
+                        <div key={i} className="session-row">
+                          <span className="session-col-name">{s.name}</span>
+                          <span className="session-col">${s.buyin.toLocaleString("en-US")}</span>
+                          <span className="session-col">${s.cashout.toLocaleString("en-US")}</span>
+                          <span className={`session-col ${pl >= 0 ? "session-profit" : "session-loss"}`}>
+                            {pl >= 0 ? "+" : "-"}${Math.abs(pl).toLocaleString("en-US")}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ───── CASHOUT MODAL ───── */}
+      {modal?.kind === "leave" && (
+        <div className="modal-backdrop" onClick={() => setModal(null)}>
+          <div className="modal-card" onClick={(e) => e.stopPropagation()}>
+            <h3 className="modal-title">Cash Out &mdash; {modal.name}</h3>
+            <p className="player-modal-buyin">
+              Total buy-in: <strong>${modal.buyin.toLocaleString("en-US")}</strong>
             </p>
+            <label className="modal-label">
+              Cashout Amount ($)
+              <input
+                className="modal-input"
+                type="number"
+                placeholder="e.g. 75"
+                min="0"
+                value={formCashout}
+                onChange={(e) => setFormCashout(e.target.value)}
+              />
+            </label>
+            {error && (
+              <p style={{ color: "#ef4444", fontSize: "0.85rem", margin: 0 }}>
+                {error}
+              </p>
+            )}
             <div className="modal-actions">
               <button
                 className="modal-btn modal-btn-cancel"
