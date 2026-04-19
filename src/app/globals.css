@@ -830,21 +830,21 @@ body {
 }
 
 .seat-buyin {
-  font-size: 0.5rem;
-  font-weight: 700;
+  font-size: 0.65rem;
+  font-weight: 800;
   color: var(--green);
   font-variant-numeric: tabular-nums;
 }
 
 @media (min-width: 480px) {
   .seat-name { font-size: 0.6rem; }
-  .seat-buyin { font-size: 0.6rem; }
+  .seat-buyin { font-size: 0.75rem; }
   .seat-open-label { font-size: 0.55rem; }
 }
 
 @media (min-width: 1100px) {
   .seat-name { font-size: 0.75rem; }
-  .seat-buyin { font-size: 0.85rem; }
+  .seat-buyin { font-size: 1rem; }
   .seat-open-label { font-size: 0.65rem; }
   .seat-info { gap: 3px; }
 }
