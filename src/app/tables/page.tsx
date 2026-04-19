@@ -461,8 +461,8 @@ export default function TablesPage() {
                           className="session-row session-row-clickable"
                           onClick={() => setAddToBoard({ session: s, date: selectedDate!, index: origIdx })}
                         >
-                          <span className={`session-col-paid ${s.paid ? "session-paid" : ""}`}>
-                            {s.paid ? "\u2713" : ""}
+                          <span className={`session-col-paid ${(s.paid || (s.cashout - s.buyin) < 0) ? "session-paid" : ""}`}>
+                            {(s.paid || (s.cashout - s.buyin) < 0) ? "\uD83D\uDCB0" : ""}
                           </span>
                           <span className="session-col-name">{s.name}</span>
                           <span className="session-col">${s.buyin.toLocaleString("en-US")}</span>
@@ -557,32 +557,34 @@ export default function TablesPage() {
                   {addingToBoard ? "Adding..." : "Top Losers"}
                 </button>
               </div>
-              <button
-                className="modal-btn modal-btn-submit"
-                style={{ marginTop: "0.75rem" }}
-                disabled={addingToBoard}
-                onClick={async () => {
-                  setAddingToBoard(true);
-                  try {
-                    const res = await fetch("/api/sessions", {
-                      method: "PATCH",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({
-                        date: addToBoard.date,
-                        index: addToBoard.index,
-                      }),
-                    });
-                    if (res.ok) {
-                      const data = await res.json();
-                      setSessions(data.sessions ?? []);
-                      setAddToBoard(null);
-                    }
-                  } catch { /* ignore */ }
-                  setAddingToBoard(false);
-                }}
-              >
-                {addToBoard.session.paid ? "Mark Unpaid" : "Mark Paid"}
-              </button>
+              {pl >= 0 && (
+                <button
+                  className="modal-btn modal-btn-submit"
+                  style={{ marginTop: "0.75rem" }}
+                  disabled={addingToBoard}
+                  onClick={async () => {
+                    setAddingToBoard(true);
+                    try {
+                      const res = await fetch("/api/sessions", {
+                        method: "PATCH",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                          date: addToBoard.date,
+                          index: addToBoard.index,
+                        }),
+                      });
+                      if (res.ok) {
+                        const data = await res.json();
+                        setSessions(data.sessions ?? []);
+                        setAddToBoard(null);
+                      }
+                    } catch { /* ignore */ }
+                    setAddingToBoard(false);
+                  }}
+                >
+                  {addToBoard.session.paid ? "Mark Unpaid" : "Mark Paid"}
+                </button>
+              )}
               <button
                 className="modal-btn modal-btn-delete"
                 style={{ marginTop: "0.25rem" }}
