@@ -649,10 +649,10 @@ body {
 .tables-grid {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 3rem;
-  max-width: 1100px;
+  gap: 5rem;
+  max-width: 1200px;
   margin: 0 auto;
-  padding: 0 1.5rem;
+  padding: 0 2rem;
 }
 
 @media (min-width: 900px) {
@@ -713,6 +713,10 @@ body {
   justify-content: center;
   transform: translate(-50%, -50%);
   transition: border-color 0.3s ease, box-shadow 0.3s ease;
+  padding: 0;
+  font-family: inherit;
+  cursor: pointer;
+  outline: none;
 }
 
 .seat-empty {
@@ -739,26 +743,27 @@ body {
 .seat-6 { top: 95%; left: 30%; }
 .seat-7 { top: 50%; left: 5%;  }
 
-.seat-open-btn {
-  background: none;
-  border: none;
+.seat-open-label {
   color: #4a4640;
   font-size: 0.65rem;
   text-transform: uppercase;
   letter-spacing: 0.1em;
-  cursor: pointer;
   font-weight: 600;
-  transition: color 0.2s ease;
 }
-.seat-open-btn:hover {
-  color: var(--gold);
+
+.seat-occupied {
+  cursor: pointer;
+}
+.seat-occupied:hover {
+  border-color: var(--gold);
+  box-shadow: 0 4px 20px rgba(212, 168, 67, 0.2);
 }
 
 .seat-info {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 1px;
+  gap: 2px;
   text-align: center;
   width: 100%;
 }
@@ -781,43 +786,52 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
-.seat-actions {
-  display: flex;
-  gap: 2px;
-  margin-top: 2px;
+/* Player options modal */
+.player-modal-buyin {
+  font-size: 0.9rem;
+  color: #9e9a92;
+  text-align: center;
+}
+.player-modal-buyin strong {
+  color: var(--green);
+  font-size: 1.1rem;
 }
 
-.seat-btn {
-  width: 1.3rem;
-  height: 1.3rem;
-  border-radius: 50%;
-  border: none;
-  display: grid;
-  place-items: center;
-  font-size: 0.55rem;
+.player-modal-options {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.player-option-btn {
+  flex: 1;
+  padding: 0.85rem;
+  border-radius: 0.7rem;
+  font-size: 0.9rem;
   font-weight: 700;
   cursor: pointer;
+  border: none;
   transition: all 0.2s ease;
-  opacity: 0;
-}
-.seat-occupied:hover .seat-btn {
-  opacity: 1;
 }
 
-.seat-btn-rebuy {
-  background: rgba(46, 204, 113, 0.15);
+.player-option-rebuy {
+  background: rgba(46, 204, 113, 0.12);
   color: var(--green);
+  border: 1px solid rgba(46, 204, 113, 0.25);
 }
-.seat-btn-rebuy:hover {
-  background: rgba(46, 204, 113, 0.3);
+.player-option-rebuy:hover {
+  background: rgba(46, 204, 113, 0.2);
+  border-color: var(--green);
 }
 
-.seat-btn-leave {
-  background: rgba(192, 57, 43, 0.15);
+.player-option-cashout {
+  background: rgba(192, 57, 43, 0.12);
   color: var(--red);
+  border: 1px solid rgba(192, 57, 43, 0.25);
 }
-.seat-btn-leave:hover {
-  background: rgba(192, 57, 43, 0.3);
+.player-option-cashout:hover {
+  background: rgba(192, 57, 43, 0.2);
+  border-color: var(--red);
 }
 
 /* ─── NAV LINK ON HOME PAGE ─── */

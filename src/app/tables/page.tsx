@@ -12,6 +12,7 @@ const EMPTY: TablesState = {
 
 type ModalState =
   | { kind: "sit"; table: number; seat: number }
+  | { kind: "player"; table: number; seat: number; name: string; buyin: number }
   | { kind: "rebuy"; table: number; seat: number; name: string }
   | { kind: "leave"; table: number; seat: number; name: string }
   | null;
@@ -143,15 +144,9 @@ export default function TablesPage() {
     setModal({ kind: "sit", table, seat });
   };
 
-  const openRebuy = (table: number, seat: number, name: string) => {
-    setFormBuyin("");
+  const openPlayer = (table: number, seat: number, name: string, buyin: number) => {
     setError("");
-    setModal({ kind: "rebuy", table, seat, name });
-  };
-
-  const openLeave = (table: number, seat: number, name: string) => {
-    setError("");
-    setModal({ kind: "leave", table, seat, name });
+    setModal({ kind: "player", table, seat, name, buyin });
   };
 
   return (
@@ -184,9 +179,14 @@ export default function TablesPage() {
                 <span className="felt-text">Joe&apos;s Casino</span>
               </div>
               {seats.map((s, si) => (
-                <div
+                <button
                   key={si}
                   className={`seat seat-${si} ${s ? "seat-occupied" : "seat-empty"}`}
+                  onClick={() =>
+                    s
+                      ? openPlayer(ti, si, s.name, s.buyin)
+                      : openSit(ti, si)
+                  }
                 >
                   {s ? (
                     <div className="seat-info">
@@ -194,30 +194,11 @@ export default function TablesPage() {
                       <span className="seat-buyin">
                         ${s.buyin.toLocaleString("en-US")}
                       </span>
-                      <div className="seat-actions">
-                        <button
-                          className="seat-btn seat-btn-rebuy"
-                          onClick={() => openRebuy(ti, si, s.name)}
-                        >
-                          +$
-                        </button>
-                        <button
-                          className="seat-btn seat-btn-leave"
-                          onClick={() => openLeave(ti, si, s.name)}
-                        >
-                          &times;
-                        </button>
-                      </div>
                     </div>
                   ) : (
-                    <button
-                      className="seat-open-btn"
-                      onClick={() => openSit(ti, si)}
-                    >
-                      Open
-                    </button>
+                    <span className="seat-open-label">Open</span>
                   )}
-                </div>
+                </button>
               ))}
             </div>
           </div>
@@ -276,12 +257,45 @@ export default function TablesPage() {
         </div>
       )}
 
+      {/* ───── PLAYER OPTIONS MODAL ───── */}
+      {modal?.kind === "player" && (
+        <div className="modal-backdrop" onClick={() => setModal(null)}>
+          <div className="modal-card" onClick={(e) => e.stopPropagation()}>
+            <h3 className="modal-title">{modal.name}</h3>
+            <p className="player-modal-buyin">
+              Total buy-in: <strong>${modal.buyin.toLocaleString("en-US")}</strong>
+            </p>
+            <div className="player-modal-options">
+              <button
+                className="player-option-btn player-option-rebuy"
+                onClick={() => {
+                  setFormBuyin("");
+                  setError("");
+                  setModal({ kind: "rebuy", table: modal.table, seat: modal.seat, name: modal.name });
+                }}
+              >
+                Re-buy
+              </button>
+              <button
+                className="player-option-btn player-option-cashout"
+                onClick={() => {
+                  setError("");
+                  setModal({ kind: "leave", table: modal.table, seat: modal.seat, name: modal.name });
+                }}
+              >
+                Cash Out
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ───── REBUY MODAL ───── */}
       {modal?.kind === "rebuy" && (
         <div className="modal-backdrop" onClick={() => setModal(null)}>
           <div className="modal-card" onClick={(e) => e.stopPropagation()}>
             <h3 className="modal-title">
-              Add Re-buy &mdash; {modal.name}
+              Re-buy &mdash; {modal.name}
             </h3>
             <label className="modal-label">
               Amount ($)
@@ -318,14 +332,14 @@ export default function TablesPage() {
         </div>
       )}
 
-      {/* ───── LEAVE CONFIRMATION ───── */}
+      {/* ───── CASHOUT CONFIRMATION ───── */}
       {modal?.kind === "leave" && (
         <div className="modal-backdrop" onClick={() => setModal(null)}>
           <div
             className="modal-card confirm-card"
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 className="modal-title">Leave Table?</h3>
+            <h3 className="modal-title">Cash Out?</h3>
             <p className="confirm-detail">
               <span className="confirm-name">{modal.name}</span>
             </p>
@@ -341,7 +355,7 @@ export default function TablesPage() {
                 onClick={handleLeave}
                 disabled={submitting}
               >
-                {submitting ? "Leaving..." : "Leave"}
+                {submitting ? "Cashing out..." : "Cash Out"}
               </button>
             </div>
           </div>
