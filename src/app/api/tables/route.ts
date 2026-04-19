@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 
 type Seat = { name: string; buyin: number } | null;
 type TablesState = { tables: [Seat[], Seat[]] };
-type SessionRecord = { name: string; buyin: number; cashout: number; table: number };
+type SessionRecord = { name: string; buyin: number; cashout: number; table: number; paid?: boolean };
 
 const EMPTY_STATE: TablesState = {
   tables: [Array(10).fill(null), Array(10).fill(null)],
