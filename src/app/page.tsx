@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import Image from "next/image";
+import Link from "next/link";
 
 type Entry = { date: string; name: string; amount: number };
 
@@ -268,6 +269,9 @@ export default function Home() {
           <p className="hero-sub">
             The official leaderboard for the best ODU home game.
           </p>
+          <Link href="/tables" className="home-tables-link">
+            Live Tables &rarr;
+          </Link>
           <div className="hero-scroll-cue">
             <span />
           </div>
