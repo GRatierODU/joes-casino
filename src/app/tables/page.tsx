@@ -32,6 +32,8 @@ export default function TablesPage() {
   const [historyDates, setHistoryDates] = useState<string[]>([]);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [sessions, setSessions] = useState<SessionRecord[]>([]);
+  const [addToBoard, setAddToBoard] = useState<{ session: SessionRecord; date: string } | null>(null);
+  const [addingToBoard, setAddingToBoard] = useState(false);
 
   const fetchState = useCallback(() => {
     fetch("/api/tables")
@@ -450,14 +452,18 @@ export default function TablesPage() {
                     {[...sessions].sort((a, b) => (b.cashout - b.buyin) - (a.cashout - a.buyin)).map((s, i) => {
                       const pl = s.cashout - s.buyin;
                       return (
-                        <div key={i} className="session-row">
+                        <button
+                          key={i}
+                          className="session-row session-row-clickable"
+                          onClick={() => setAddToBoard({ session: s, date: selectedDate! })}
+                        >
                           <span className="session-col-name">{s.name}</span>
                           <span className="session-col">${s.buyin.toLocaleString("en-US")}</span>
                           <span className="session-col">${s.cashout.toLocaleString("en-US")}</span>
                           <span className={`session-col ${pl >= 0 ? "session-profit" : "session-loss"}`}>
                             {pl >= 0 ? "+" : "-"}${Math.abs(pl).toLocaleString("en-US")}
                           </span>
-                        </div>
+                        </button>
                       );
                     })}
                   </div>
@@ -467,6 +473,83 @@ export default function TablesPage() {
           </div>
         </div>
       )}
+
+      {/* ───── ADD TO LEADERBOARD MODAL ───── */}
+      {addToBoard && (() => {
+        const pl = addToBoard.session.cashout - addToBoard.session.buyin;
+        const dateParts = addToBoard.date.split("-");
+        const dateStr = `${parseInt(dateParts[1])}/${parseInt(dateParts[2])}/${dateParts[0].slice(2)}`;
+        return (
+          <div className="modal-backdrop" onClick={() => setAddToBoard(null)}>
+            <div className="modal-card" onClick={(e) => e.stopPropagation()}>
+              <h3 className="modal-title">Add to Leaderboard?</h3>
+              <p className="player-modal-buyin" style={{ marginBottom: "0.25rem" }}>
+                <strong>{addToBoard.session.name}</strong>
+              </p>
+              <p className="player-modal-buyin">
+                P/L: <strong className={pl >= 0 ? "session-profit" : "session-loss"}>
+                  {pl >= 0 ? "+" : "-"}${Math.abs(pl).toLocaleString("en-US")}
+                </strong>
+              </p>
+              <div className="player-modal-options">
+                <button
+                  className="player-option-btn player-option-rebuy"
+                  disabled={addingToBoard}
+                  onClick={async () => {
+                    setAddingToBoard(true);
+                    try {
+                      await fetch("/api/leaderboard", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                          board: "winner",
+                          date: dateStr,
+                          name: addToBoard.session.name,
+                          amount: Math.abs(pl),
+                        }),
+                      });
+                      setAddToBoard(null);
+                    } catch { /* ignore */ }
+                    setAddingToBoard(false);
+                  }}
+                >
+                  {addingToBoard ? "Adding..." : "Top Winners"}
+                </button>
+                <button
+                  className="player-option-btn player-option-cashout"
+                  disabled={addingToBoard}
+                  onClick={async () => {
+                    setAddingToBoard(true);
+                    try {
+                      await fetch("/api/leaderboard", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                          board: "loser",
+                          date: dateStr,
+                          name: addToBoard.session.name,
+                          amount: Math.abs(pl),
+                        }),
+                      });
+                      setAddToBoard(null);
+                    } catch { /* ignore */ }
+                    setAddingToBoard(false);
+                  }}
+                >
+                  {addingToBoard ? "Adding..." : "Top Losers"}
+                </button>
+              </div>
+              <button
+                className="modal-btn modal-btn-cancel"
+                style={{ marginTop: "0.5rem" }}
+                onClick={() => setAddToBoard(null)}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* ───── CASHOUT MODAL ───── */}
       {modal?.kind === "leave" && (

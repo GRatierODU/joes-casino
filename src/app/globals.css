@@ -986,6 +986,17 @@ body {
   font-weight: 600;
 }
 
+.session-row-clickable {
+  cursor: pointer;
+  width: 100%;
+  font-family: inherit;
+  text-align: left;
+}
+.session-row-clickable:hover {
+  background: rgba(255, 255, 255, 0.055);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
 .session-col-name {
   flex: 1;
   font-size: 0.9rem;
