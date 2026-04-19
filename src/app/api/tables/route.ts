@@ -6,7 +6,7 @@ type TablesState = { tables: [Seat[], Seat[]] };
 type SessionRecord = { name: string; buyin: number; cashout: number; table: number };
 
 const EMPTY_STATE: TablesState = {
-  tables: [Array(8).fill(null), Array(8).fill(null)],
+  tables: [Array(10).fill(null), Array(10).fill(null)],
 };
 
 function getRedis(): Redis | null {
@@ -53,7 +53,7 @@ export async function POST(request: Request) {
     table < 0 ||
     table > 1 ||
     seat < 0 ||
-    seat > 7
+    seat > 9
   ) {
     return NextResponse.json({ error: "Invalid input" }, { status: 400 });
   }

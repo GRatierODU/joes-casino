@@ -7,7 +7,7 @@ type Seat = { name: string; buyin: number } | null;
 type TablesState = { tables: [Seat[], Seat[]] };
 
 const EMPTY: TablesState = {
-  tables: [Array(8).fill(null), Array(8).fill(null)],
+  tables: [Array(10).fill(null), Array(10).fill(null)],
 };
 
 type SessionRecord = { name: string; buyin: number; cashout: number; table: number; paid?: boolean };

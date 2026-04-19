@@ -752,15 +752,17 @@ body {
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
 }
 
-/* 8 seats around the table */
-.seat-0 { top: 5%;  left: 30%; }
-.seat-1 { top: 5%;  left: 50%; }
-.seat-2 { top: 5%;  left: 70%; }
-.seat-3 { top: 50%; left: 95%; }
-.seat-4 { top: 95%; left: 70%; }
-.seat-5 { top: 95%; left: 50%; }
-.seat-6 { top: 95%; left: 30%; }
-.seat-7 { top: 50%; left: 5%;  }
+/* 10 seats around the table */
+.seat-0 { top: 5%;  left: 25%; }
+.seat-1 { top: 5%;  left: 43%; }
+.seat-2 { top: 5%;  left: 61%; }
+.seat-3 { top: 5%;  left: 79%; }
+.seat-4 { top: 50%; left: 97%; }
+.seat-5 { top: 95%; left: 79%; }
+.seat-6 { top: 95%; left: 61%; }
+.seat-7 { top: 95%; left: 43%; }
+.seat-8 { top: 95%; left: 25%; }
+.seat-9 { top: 50%; left: 3%;  }
 
 .seat-open-label {
   color: #4a4640;
