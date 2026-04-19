@@ -696,8 +696,8 @@ body {
 .poker-table {
   position: relative;
   width: 100%;
-  aspect-ratio: 1.5 / 1;
-  max-width: 480px;
+  aspect-ratio: 1.6 / 1;
+  max-width: 520px;
   margin: 0 auto;
 }
 
@@ -724,8 +724,8 @@ body {
 /* Seat positioning around the oval */
 .seat {
   position: absolute;
-  width: 4.5rem;
-  height: 4.5rem;
+  width: 3.2rem;
+  height: 3.2rem;
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -736,6 +736,20 @@ body {
   font-family: inherit;
   cursor: pointer;
   outline: none;
+}
+
+@media (min-width: 480px) {
+  .seat {
+    width: 4rem;
+    height: 4rem;
+  }
+}
+
+@media (min-width: 768px) {
+  .seat {
+    width: 4.5rem;
+    height: 4.5rem;
+  }
 }
 
 .seat-empty {
@@ -766,7 +780,7 @@ body {
 
 .seat-open-label {
   color: #4a4640;
-  font-size: 0.65rem;
+  font-size: 0.5rem;
   text-transform: uppercase;
   letter-spacing: 0.1em;
   font-weight: 600;
@@ -790,7 +804,7 @@ body {
 }
 
 .seat-name {
-  font-size: 0.6rem;
+  font-size: 0.5rem;
   font-weight: 600;
   color: #e4e0d8;
   white-space: nowrap;
@@ -801,7 +815,7 @@ body {
 }
 
 .seat-buyin {
-  font-size: 0.6rem;
+  font-size: 0.5rem;
   font-weight: 700;
   color: var(--green);
   font-variant-numeric: tabular-nums;
