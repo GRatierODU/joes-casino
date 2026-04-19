@@ -20,7 +20,13 @@ function getRedis(): Redis | null {
 
 async function getState(redis: Redis): Promise<TablesState> {
   const data = await redis.get<TablesState>("joes-tables");
-  return data ?? EMPTY_STATE;
+  if (!data) return EMPTY_STATE;
+  for (let t = 0; t < data.tables.length; t++) {
+    while (data.tables[t].length < 10) {
+      data.tables[t].push(null);
+    }
+  }
+  return data;
 }
 
 export async function GET() {
