@@ -32,7 +32,7 @@ export default function TablesPage() {
   const [historyDates, setHistoryDates] = useState<string[]>([]);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [sessions, setSessions] = useState<SessionRecord[]>([]);
-  const [addToBoard, setAddToBoard] = useState<{ session: SessionRecord; date: string } | null>(null);
+  const [addToBoard, setAddToBoard] = useState<{ session: SessionRecord; date: string; index: number } | null>(null);
   const [addingToBoard, setAddingToBoard] = useState(false);
 
   const fetchState = useCallback(() => {
@@ -449,13 +449,16 @@ export default function TablesPage() {
                       <span className="session-col">Cashout</span>
                       <span className="session-col">P/L</span>
                     </div>
-                    {[...sessions].sort((a, b) => (b.cashout - b.buyin) - (a.cashout - a.buyin)).map((s, i) => {
+                    {sessions
+                      .map((s, origIdx) => ({ s, origIdx }))
+                      .sort((a, b) => (b.s.cashout - b.s.buyin) - (a.s.cashout - a.s.buyin))
+                      .map(({ s, origIdx }) => {
                       const pl = s.cashout - s.buyin;
                       return (
                         <button
-                          key={i}
+                          key={origIdx}
                           className="session-row session-row-clickable"
-                          onClick={() => setAddToBoard({ session: s, date: selectedDate! })}
+                          onClick={() => setAddToBoard({ session: s, date: selectedDate!, index: origIdx })}
                         >
                           <span className="session-col-name">{s.name}</span>
                           <span className="session-col">${s.buyin.toLocaleString("en-US")}</span>
@@ -540,8 +543,35 @@ export default function TablesPage() {
                 </button>
               </div>
               <button
+                className="modal-btn modal-btn-delete"
+                style={{ marginTop: "0.75rem" }}
+                disabled={addingToBoard}
+                onClick={async () => {
+                  setAddingToBoard(true);
+                  try {
+                    const res = await fetch("/api/sessions", {
+                      method: "DELETE",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({
+                        date: addToBoard.date,
+                        index: addToBoard.index,
+                      }),
+                    });
+                    if (res.ok) {
+                      const data = await res.json();
+                      setSessions(data.sessions ?? []);
+                      if (data.dates) setHistoryDates(data.dates);
+                      setAddToBoard(null);
+                    }
+                  } catch { /* ignore */ }
+                  setAddingToBoard(false);
+                }}
+              >
+                {addingToBoard ? "Deleting..." : "Delete Session"}
+              </button>
+              <button
                 className="modal-btn modal-btn-cancel"
-                style={{ marginTop: "0.5rem" }}
+                style={{ marginTop: "0.25rem" }}
                 onClick={() => setAddToBoard(null)}
               >
                 Cancel
