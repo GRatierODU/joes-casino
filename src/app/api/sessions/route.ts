@@ -1,7 +1,7 @@
 import { Redis } from "@upstash/redis";
 import { NextRequest, NextResponse } from "next/server";
 
-type SessionRecord = { name: string; buyin: number; cashout: number; table: number };
+type SessionRecord = { name: string; buyin: number; cashout: number; table: number; paid?: boolean };
 
 function getRedis(): Redis | null {
   const url =
@@ -28,6 +28,29 @@ export async function GET(request: NextRequest) {
 
   const dates = (await redis.get<string[]>("joes-session-dates")) ?? [];
   return NextResponse.json({ dates });
+}
+
+export async function PATCH(request: NextRequest) {
+  const redis = getRedis();
+  if (!redis) {
+    return NextResponse.json({ error: "Database not configured" }, { status: 503 });
+  }
+
+  const { date, index } = await request.json();
+  if (!date || typeof index !== "number" || index < 0) {
+    return NextResponse.json({ error: "Invalid input" }, { status: 400 });
+  }
+
+  const key = `joes-sessions:${date}`;
+  const sessions = (await redis.get<SessionRecord[]>(key)) ?? [];
+
+  if (index >= sessions.length) {
+    return NextResponse.json({ error: "Index out of range" }, { status: 400 });
+  }
+
+  sessions[index].paid = !sessions[index].paid;
+  await redis.set(key, sessions);
+  return NextResponse.json({ sessions });
 }
 
 export async function DELETE(request: NextRequest) {
