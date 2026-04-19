@@ -447,7 +447,7 @@ export default function TablesPage() {
                       <span className="session-col">Cashout</span>
                       <span className="session-col">P/L</span>
                     </div>
-                    {sessions.map((s, i) => {
+                    {[...sessions].sort((a, b) => (b.cashout - b.buyin) - (a.cashout - a.buyin)).map((s, i) => {
                       const pl = s.cashout - s.buyin;
                       return (
                         <div key={i} className="session-row">
