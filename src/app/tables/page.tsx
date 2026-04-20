@@ -50,7 +50,9 @@ export default function TablesPage() {
   }, [fetchState]);
 
   const isOpen = state.tables.some((t) => t.some((s) => s !== null));
-  const totalPlayers = state.tables.flat().filter((s) => s !== null).length;
+  const occupiedSeats = state.tables.flat().filter((s): s is Seat & object => s !== null);
+  const totalPlayers = occupiedSeats.length;
+  const totalInPlay = occupiedSeats.reduce((sum, s) => sum + s.buyin, 0);
 
   const handleSit = useCallback(async () => {
     if (!modal || modal.kind !== "sit") return;
@@ -196,6 +198,9 @@ export default function TablesPage() {
             ? `${totalPlayers} player${totalPlayers !== 1 ? "s" : ""} at the table${totalPlayers > 1 ? "s" : ""}`
             : "No active games right now"}
         </p>
+        {isOpen && (
+          <p className="tables-in-play">${totalInPlay.toLocaleString("en-US")} in play</p>
+        )}
         <button
           className="history-btn"
           onClick={async () => {

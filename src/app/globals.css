@@ -665,6 +665,14 @@ body {
   color: #706b60;
 }
 
+.tables-in-play {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--gold);
+  letter-spacing: 0.03em;
+  margin-top: 0.15rem;
+}
+
 .tables-grid {
   display: grid;
   grid-template-columns: 1fr;
