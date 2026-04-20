@@ -108,6 +108,25 @@ export async function POST(request: Request) {
       }
     }
     state.tables[table][seat] = null;
+  } else if (action === "move") {
+    const { toTable, toSeat } = body as { toTable: number; toSeat: number };
+    if (
+      typeof toTable !== "number" ||
+      typeof toSeat !== "number" ||
+      toTable < 0 || toTable > 1 ||
+      toSeat < 0 || toSeat > 9
+    ) {
+      return NextResponse.json({ error: "Invalid destination" }, { status: 400 });
+    }
+    const current = state.tables[table][seat];
+    if (!current) {
+      return NextResponse.json({ error: "Seat is empty" }, { status: 400 });
+    }
+    if (state.tables[toTable][toSeat] !== null) {
+      return NextResponse.json({ error: "Destination seat taken" }, { status: 409 });
+    }
+    state.tables[toTable][toSeat] = current;
+    state.tables[table][seat] = null;
   } else {
     return NextResponse.json({ error: "Unknown action" }, { status: 400 });
   }

@@ -17,6 +17,7 @@ type ModalState =
   | { kind: "player"; table: number; seat: number; name: string; buyin: number }
   | { kind: "rebuy"; table: number; seat: number; name: string }
   | { kind: "leave"; table: number; seat: number; name: string; buyin: number }
+  | { kind: "move"; table: number; seat: number; name: string }
   | null;
 
 export default function TablesPage() {
@@ -230,6 +231,7 @@ export default function TablesPage() {
                       : openSit(ti, si)
                   }
                 >
+                  <span className="seat-number">{si + 1}</span>
                   {s ? (
                     <div className="seat-info">
                       <span className="seat-name">{s.name}</span>
@@ -329,6 +331,77 @@ export default function TablesPage() {
                 Cash Out
               </button>
             </div>
+            <button
+              className="player-option-btn player-option-move"
+              onClick={() => {
+                setError("");
+                setModal({ kind: "move", table: modal.table, seat: modal.seat, name: modal.name });
+              }}
+            >
+              Move Seat
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ───── MOVE SEAT MODAL ───── */}
+      {modal?.kind === "move" && (
+        <div className="modal-backdrop" onClick={() => setModal(null)}>
+          <div className="modal-card" onClick={(e) => e.stopPropagation()}>
+            <h3 className="modal-title">Move {modal.name}</h3>
+            <p className="player-modal-buyin" style={{ marginBottom: "0.5rem" }}>
+              Currently: Table {modal.table + 1}, Seat {modal.seat + 1}
+            </p>
+            {state.tables.map((seats, ti) => {
+              const emptySeats = seats
+                .map((s, si) => ({ s, si }))
+                .filter(({ s, si }) => s === null && !(ti === modal.table && si === modal.seat));
+              if (emptySeats.length === 0) return null;
+              return (
+                <div key={ti} className="move-table-group">
+                  <p className="move-table-label">Table {ti + 1}</p>
+                  <div className="move-seat-grid">
+                    {emptySeats.map(({ si }) => (
+                      <button
+                        key={si}
+                        className="move-seat-btn"
+                        disabled={submitting}
+                        onClick={async () => {
+                          setSubmitting(true);
+                          try {
+                            const res = await fetch("/api/tables", {
+                              method: "POST",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({
+                                action: "move",
+                                table: modal.table,
+                                seat: modal.seat,
+                                toTable: ti,
+                                toSeat: si,
+                              }),
+                            });
+                            if (res.ok) {
+                              setState(await res.json());
+                              setModal(null);
+                            }
+                          } catch { /* ignore */ }
+                          setSubmitting(false);
+                        }}
+                      >
+                        Seat {si + 1}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+            <button
+              className="modal-btn modal-btn-cancel"
+              style={{ marginTop: "0.5rem" }}
+              onClick={() => setModal(null)}
+            >
+              Cancel
+            </button>
           </div>
         </div>
       )}
