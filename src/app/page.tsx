@@ -151,6 +151,16 @@ export default function Home() {
     setModalOpen(true);
   }, []);
 
+  const [rivalry, setRivalry] = useState({ avery: 0, wes: 35 });
+  const [rivalryEdit, setRivalryEdit] = useState<{ player: "avery" | "wes"; value: string } | null>(null);
+
+  useEffect(() => {
+    fetch("/api/rivalry")
+      .then((r) => r.json())
+      .then((d: { avery: number; wes: number }) => setRivalry(d))
+      .catch(() => {});
+  }, []);
+
   const [error, setError] = useState("");
   const [confirmDelete, setConfirmDelete] = useState<{
     board: "winner" | "loser";
@@ -344,18 +354,77 @@ export default function Home() {
           <div className="rivalry-card">
             <div className="rivalry-player rivalry-left">
               <span className="rivalry-name">Avery</span>
-              <span className="rivalry-score">0</span>
+              <button
+                className={`rivalry-score ${rivalry.avery > rivalry.wes ? "rivalry-score-lead" : ""}`}
+                onClick={() => setRivalryEdit({ player: "avery", value: String(rivalry.avery) })}
+              >
+                ${rivalry.avery}
+              </button>
             </div>
             <div className="rivalry-divider">
               <span className="rivalry-vs">VS</span>
             </div>
             <div className="rivalry-player rivalry-right">
-              <span className="rivalry-score rivalry-score-lead">35</span>
+              <button
+                className={`rivalry-score ${rivalry.wes > rivalry.avery ? "rivalry-score-lead" : ""}`}
+                onClick={() => setRivalryEdit({ player: "wes", value: String(rivalry.wes) })}
+              >
+                ${rivalry.wes}
+              </button>
               <span className="rivalry-name">Wes</span>
             </div>
           </div>
         </RevealSection>
       </section>
+
+      {/* ───── RIVALRY EDIT MODAL ───── */}
+      {rivalryEdit && (
+        <div className="modal-backdrop" onClick={() => setRivalryEdit(null)}>
+          <div className="modal-card" onClick={(e) => e.stopPropagation()}>
+            <h3 className="modal-title">
+              Edit {rivalryEdit.player === "avery" ? "Avery" : "Wes"}&apos;s Score
+            </h3>
+            <label className="modal-label">
+              Amount ($)
+              <input
+                className="modal-input"
+                type="number"
+                min="0"
+                value={rivalryEdit.value}
+                onChange={(e) => setRivalryEdit({ ...rivalryEdit, value: e.target.value })}
+              />
+            </label>
+            <div className="modal-actions">
+              <button className="modal-btn modal-btn-cancel" onClick={() => setRivalryEdit(null)}>
+                Cancel
+              </button>
+              <button
+                className="modal-btn modal-btn-submit"
+                disabled={submitting}
+                onClick={async () => {
+                  const val = parseFloat(rivalryEdit.value);
+                  if (isNaN(val) || val < 0) return;
+                  setSubmitting(true);
+                  try {
+                    const res = await fetch("/api/rivalry", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ [rivalryEdit.player]: val }),
+                    });
+                    if (res.ok) {
+                      setRivalry(await res.json());
+                      setRivalryEdit(null);
+                    }
+                  } catch {}
+                  setSubmitting(false);
+                }}
+              >
+                {submitting ? "Saving..." : "Save"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ───── ADD ENTRY BUTTON ───── */}
       <button className="fab" onClick={openModal} aria-label="Add entry">

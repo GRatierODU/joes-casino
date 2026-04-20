@@ -399,6 +399,16 @@ body {
   color: #4a4640;
   line-height: 1;
   font-variant-numeric: tabular-nums;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  padding: 0.2rem 0.4rem;
+  border-radius: 0.5rem;
+  transition: all 0.2s ease;
+}
+.rivalry-score:hover {
+  background: rgba(255, 255, 255, 0.05);
 }
 
 .rivalry-score-lead {
