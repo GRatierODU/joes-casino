@@ -336,6 +336,27 @@ export default function Home() {
         </RevealSection>
       </section>
 
+      {/* ───── RIVALRY TRACKER ───── */}
+      <section className="rivalry-section">
+        <RevealSection>
+          <p className="rivalry-label">Head to Head</p>
+          <h2 className="rivalry-title">Avery vs Wes</h2>
+          <div className="rivalry-card">
+            <div className="rivalry-player rivalry-left">
+              <span className="rivalry-name">Avery</span>
+              <span className="rivalry-score">0</span>
+            </div>
+            <div className="rivalry-divider">
+              <span className="rivalry-vs">VS</span>
+            </div>
+            <div className="rivalry-player rivalry-right">
+              <span className="rivalry-score rivalry-score-lead">35</span>
+              <span className="rivalry-name">Wes</span>
+            </div>
+          </div>
+        </RevealSection>
+      </section>
+
       {/* ───── ADD ENTRY BUTTON ───── */}
       <button className="fab" onClick={openModal} aria-label="Add entry">
         +
