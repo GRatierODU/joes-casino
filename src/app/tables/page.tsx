@@ -185,6 +185,9 @@ export default function TablesPage() {
         <Link href="/" className="tables-nav-link">
           &larr; Leaderboard
         </Link>
+        <Link href="/tournaments" className="tables-nav-link">
+          Tournaments
+        </Link>
       </nav>
 
       <header className="tables-header">

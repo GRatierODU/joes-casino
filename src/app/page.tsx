@@ -269,9 +269,14 @@ export default function Home() {
           <p className="hero-sub">
             The official leaderboard for the best ODU home game.
           </p>
-          <Link href="/tables" className="home-tables-link">
-            Live Tables &rarr;
-          </Link>
+          <div className="hero-links">
+            <Link href="/tables" className="home-tables-link">
+              Live Tables &rarr;
+            </Link>
+            <Link href="/tournaments" className="home-tables-link">
+              Tournaments &rarr;
+            </Link>
+          </div>
           <div className="hero-scroll-cue">
             <span />
           </div>

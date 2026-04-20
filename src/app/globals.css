@@ -598,6 +598,9 @@ body {
 
 .tables-nav {
   padding: 1.5rem 2rem;
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
 }
 
 .tables-nav-link {
@@ -1191,6 +1194,303 @@ body {
   color: var(--red);
 }
 
+/* ─── TOURNAMENT: REGISTRATION BADGE ─── */
+.status-registering {
+  background: rgba(212, 168, 67, 0.12);
+  color: var(--gold);
+  border: 1px solid rgba(212, 168, 67, 0.3);
+  box-shadow: 0 0 20px rgba(212, 168, 67, 0.1);
+}
+
+/* ─── TOURNAMENT: CONTROLS ─── */
+.tourney-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-top: 1rem;
+  flex-wrap: wrap;
+}
+
+.tourney-ctrl-btn {
+  padding: 0.55rem 1.2rem;
+  border-radius: 2rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+  color: #9e9a92;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: inherit;
+}
+.tourney-ctrl-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.2);
+  color: #e4e0d8;
+}
+.tourney-ctrl-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.tourney-ctrl-start {
+  background: rgba(46, 204, 113, 0.12);
+  color: var(--green);
+  border-color: rgba(46, 204, 113, 0.3);
+}
+.tourney-ctrl-start:hover {
+  background: rgba(46, 204, 113, 0.2);
+  border-color: var(--green);
+  color: var(--green);
+}
+
+.tourney-ctrl-cancel {
+  background: rgba(192, 57, 43, 0.08);
+  color: #9e6a62;
+  border-color: rgba(192, 57, 43, 0.2);
+}
+.tourney-ctrl-cancel:hover {
+  background: rgba(192, 57, 43, 0.15);
+  border-color: var(--red);
+  color: var(--red);
+}
+
+/* ─── TOURNAMENT: FELT BLINDS ─── */
+.felt-blinds {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+}
+
+.felt-level {
+  font-size: 0.4rem;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  color: rgba(46, 204, 113, 0.35);
+  font-weight: 600;
+}
+
+.felt-blind-value {
+  font-size: clamp(0.65rem, 2vw, 1.1rem);
+  font-weight: 800;
+  color: rgba(255, 255, 255, 0.7);
+  letter-spacing: 0.05em;
+}
+
+.felt-timer {
+  font-size: clamp(0.8rem, 2.5vw, 1.5rem);
+  font-weight: 800;
+  color: var(--green);
+  font-variant-numeric: tabular-nums;
+}
+
+.felt-timer-warning {
+  color: var(--red);
+  animation: timer-blink 1s ease-in-out infinite;
+}
+
+.felt-timer-paused {
+  color: var(--gold);
+  font-size: clamp(0.5rem, 1.5vw, 0.8rem);
+  letter-spacing: 0.15em;
+}
+
+.felt-next {
+  font-size: 0.35rem;
+  color: rgba(255, 255, 255, 0.2);
+  font-weight: 500;
+}
+
+@media (min-width: 480px) {
+  .felt-level { font-size: 0.5rem; }
+  .felt-next { font-size: 0.4rem; }
+}
+
+@media (min-width: 1100px) {
+  .felt-level { font-size: 0.6rem; }
+  .felt-next { font-size: 0.5rem; }
+}
+
+/* ─── TOURNAMENT: DEAD SEATS ─── */
+.seat-dead {
+  opacity: 0.15;
+  cursor: default;
+  pointer-events: none;
+}
+
+/* ─── TOURNAMENT: BUSTED LIST ─── */
+.tourney-busted {
+  position: relative;
+  z-index: 1;
+  max-width: 500px;
+  margin: 3rem auto 0;
+  padding: 0 2rem;
+}
+
+.tourney-busted-title {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.3em;
+  color: var(--red);
+  margin-bottom: 0.75rem;
+  font-weight: 600;
+  text-align: center;
+}
+
+.tourney-busted-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.tourney-busted-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.6rem 1rem;
+  border-radius: 0.5rem;
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.tourney-busted-place {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #706b60;
+  min-width: 2.5rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.tourney-busted-name {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #9e9a92;
+}
+
+/* ─── TOURNAMENT: FINISHED RESULT ─── */
+.tourney-winner-name {
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: var(--gold);
+  text-align: center;
+  letter-spacing: -0.01em;
+}
+
+.tourney-standings {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 0.5rem;
+}
+
+.tourney-standing-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.55rem 0.8rem;
+  border-radius: 0.5rem;
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.tourney-standing-place {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #706b60;
+  min-width: 2.5rem;
+}
+
+.tourney-standing-name {
+  flex: 1;
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: #e4e0d8;
+}
+
+/* ─── TOURNAMENT: BLIND SCHEDULE ─── */
+.tourney-blind-schedule {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 50vh;
+  overflow-y: auto;
+}
+
+.tourney-blind-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.55rem 0.8rem;
+  border-radius: 0.5rem;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.03);
+  transition: all 0.2s ease;
+}
+
+.tourney-blind-active {
+  background: rgba(46, 204, 113, 0.08);
+  border-color: rgba(46, 204, 113, 0.2);
+}
+
+.tourney-blind-level {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #706b60;
+}
+.tourney-blind-active .tourney-blind-level {
+  color: var(--green);
+}
+
+.tourney-blind-amount {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #9e9a92;
+  font-variant-numeric: tabular-nums;
+}
+.tourney-blind-active .tourney-blind-amount {
+  color: #e4e0d8;
+}
+
+/* ─── TOURNAMENT: HISTORY CARD ─── */
+.tourney-history-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.tourney-hist-date {
+  flex-shrink: 0;
+}
+
+.tourney-hist-info {
+  flex: 1;
+  font-size: 0.75rem;
+  color: #706b60;
+  text-align: center;
+}
+
+.tourney-hist-winner {
+  font-size: 0.8rem;
+  color: var(--gold);
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+/* ─── HERO LINKS ─── */
+.hero-links {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-top: 1.5rem;
+}
+.hero-links .home-tables-link {
+  margin-top: 0;
+}
+
 /* ─── NAV LINK ON HOME PAGE ─── */
 .home-tables-link {
   display: inline-flex;
@@ -1229,4 +1529,9 @@ body {
 @keyframes scroll-pulse {
   0%, 100% { opacity: 0.3; transform: scaleY(1); }
   50% { opacity: 1; transform: scaleY(1.3); }
+}
+
+@keyframes timer-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
 }
