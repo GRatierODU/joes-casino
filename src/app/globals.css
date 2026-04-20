@@ -582,8 +582,12 @@ body {
   pointer-events: none;
 }
 
-.tables-page .suit-5 { top: 55%; left: 5%; animation-delay: 2s; }
-.tables-page .suit-6 { top: 65%; right: 8%; animation-delay: 5.5s; }
+.tables-page .suit-1 { top: 8%; left: 6%; }
+.tables-page .suit-2 { top: 6%; right: 5%; }
+.tables-page .suit-3 { top: 45%; left: 46%; }
+.tables-page .suit-4 { bottom: 6%; right: 40%; }
+.tables-page .suit-5 { bottom: 5%; left: 3%; animation-delay: 2s; }
+.tables-page .suit-6 { bottom: 5%; right: 3%; animation-delay: 5.5s; }
 
 .tables-nav,
 .tables-header,
