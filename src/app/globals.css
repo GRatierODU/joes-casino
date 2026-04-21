@@ -506,6 +506,10 @@ body {
   animation: fade-in 0.25s ease both;
 }
 
+.modal-backdrop.modal-backdrop-top {
+  z-index: 95;
+}
+
 .modal-card {
   width: 90%;
   max-width: 400px;

@@ -79,7 +79,13 @@ export default function TournamentsPage() {
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
   const [blindsOpen, setBlindsOpen] = useState(false);
 
+  const CREATE_PLAYER = "__create_player__";
+
   const [players, setPlayers] = useState<string[]>([]);
+  const [quickAddPlayer, setQuickAddPlayer] = useState(false);
+  const [quickAddName, setQuickAddName] = useState("");
+  const [quickAddError, setQuickAddError] = useState("");
+  const [quickAddSubmitting, setQuickAddSubmitting] = useState(false);
 
   useEffect(() => {
     fetch("/api/players")
@@ -151,6 +157,33 @@ export default function TournamentsPage() {
     } catch { setError("Network error."); }
     setSubmitting(false);
   }, [modal, formName]);
+
+  const handleQuickAddPlayer = useCallback(async () => {
+    if (!quickAddName.trim()) {
+      setQuickAddError("Enter a name.");
+      return;
+    }
+    setQuickAddSubmitting(true);
+    setQuickAddError("");
+    try {
+      const res = await fetch("/api/players", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: quickAddName.trim() }),
+      });
+      const data = await res.json();
+      if (res.ok && data.players) {
+        setPlayers(data.players);
+        setFormName(quickAddName.trim());
+        setQuickAddPlayer(false);
+      } else {
+        setQuickAddError(data.error || "Could not add player.");
+      }
+    } catch {
+      setQuickAddError("Network error.");
+    }
+    setQuickAddSubmitting(false);
+  }, [quickAddName]);
 
   const handleUnregister = useCallback(async (table: number, seat: number) => {
     setSubmitting(true);
@@ -421,12 +454,22 @@ export default function TournamentsPage() {
               <select
                 className="modal-input modal-select"
                 value={formName}
-                onChange={(e) => setFormName(e.target.value)}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  if (v === CREATE_PLAYER) {
+                    setQuickAddPlayer(true);
+                    setQuickAddName("");
+                    setQuickAddError("");
+                  } else {
+                    setFormName(v);
+                  }
+                }}
               >
                 <option value="">Select a player</option>
                 {players.map((p) => (
                   <option key={p} value={p}>{p}</option>
                 ))}
+                <option value={CREATE_PLAYER}>+ Create new player</option>
               </select>
             </label>
             {error && <p style={{ color: "#ef4444", fontSize: "0.85rem", margin: 0 }}>{error}</p>}
@@ -434,6 +477,43 @@ export default function TournamentsPage() {
               <button className="modal-btn modal-btn-cancel" onClick={() => setModal(null)}>Cancel</button>
               <button className="modal-btn modal-btn-submit" onClick={handleRegister} disabled={submitting}>
                 {submitting ? "Registering..." : "Register"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {quickAddPlayer && (
+        <div className="modal-backdrop modal-backdrop-top" onClick={() => setQuickAddPlayer(false)}>
+          <div className="modal-card" onClick={(e) => e.stopPropagation()}>
+            <h3 className="modal-title">Create new player</h3>
+            <label className="modal-label">
+              Name
+              <input
+                className="modal-input"
+                type="text"
+                placeholder="Player name"
+                value={quickAddName}
+                onChange={(e) => setQuickAddName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    void handleQuickAddPlayer();
+                  }
+                }}
+              />
+            </label>
+            {quickAddError && (
+              <p style={{ color: "#ef4444", fontSize: "0.85rem", margin: 0 }}>{quickAddError}</p>
+            )}
+            <div className="modal-actions">
+              <button className="modal-btn modal-btn-cancel" onClick={() => setQuickAddPlayer(false)}>Cancel</button>
+              <button
+                className="modal-btn modal-btn-submit"
+                disabled={quickAddSubmitting}
+                onClick={() => void handleQuickAddPlayer()}
+              >
+                {quickAddSubmitting ? "Adding..." : "Add player"}
               </button>
             </div>
           </div>
