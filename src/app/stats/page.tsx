@@ -276,14 +276,6 @@ export default function StatsPage() {
                             </p>
                             <div className="stats-player-nick-row">
                               <span className="stats-player-nick-main">{playerStats.nickname.trim()}</span>
-                              <button
-                                type="button"
-                                className="stats-edit-btn"
-                                aria-label="Edit player"
-                                onClick={openPlayerEdit}
-                              >
-                                <PencilIcon />
-                              </button>
                             </div>
                           </>
                         ) : (
@@ -294,14 +286,6 @@ export default function StatsPage() {
                                 lastName: playerStats.lastName,
                               })}
                             </span>
-                            <button
-                              type="button"
-                              className="stats-edit-btn"
-                              aria-label="Edit player"
-                              onClick={openPlayerEdit}
-                            >
-                              <PencilIcon />
-                            </button>
                           </div>
                         )}
                       </>
@@ -310,6 +294,19 @@ export default function StatsPage() {
                     )}
                   </div>
                 </div>
+
+                {playerStats.playerId &&
+                  playerStats.firstName != null &&
+                  playerStats.lastName != null && (
+                    <button
+                      type="button"
+                      className="fab fab-pencil"
+                      aria-label="Edit player"
+                      onClick={openPlayerEdit}
+                    >
+                      <PencilIcon />
+                    </button>
+                  )}
 
                 {playerEditOpen && playerStats.playerId && (
                   <div
