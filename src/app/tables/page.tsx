@@ -2,15 +2,24 @@
 
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
+import type { PublicPlayer, TableSeat } from "@/lib/players";
+import { seatDisplayLabel, seatPicture } from "@/lib/players";
 
-type Seat = { name: string; buyin: number } | null;
+type Seat = TableSeat;
 type TablesState = { tables: [Seat[], Seat[]] };
 
 const EMPTY: TablesState = {
   tables: [Array(10).fill(null), Array(10).fill(null)],
 };
 
-type SessionRecord = { name: string; buyin: number; cashout: number; table: number; paid?: boolean };
+type SessionRecord = {
+  name: string;
+  buyin: number;
+  cashout: number;
+  table: number;
+  paid?: boolean;
+  playerId?: string;
+};
 
 type ModalState =
   | { kind: "sit"; table: number; seat: number }
@@ -23,7 +32,7 @@ type ModalState =
 export default function TablesPage() {
   const [state, setState] = useState<TablesState>(EMPTY);
   const [modal, setModal] = useState<ModalState>(null);
-  const [formName, setFormName] = useState("");
+  const [formPlayerId, setFormPlayerId] = useState("");
   const [formBuyin, setFormBuyin] = useState("");
   const [formCashout, setFormCashout] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -38,11 +47,22 @@ export default function TablesPage() {
 
   const CREATE_PLAYER = "__create_player__";
 
-  const [players, setPlayers] = useState<string[]>([]);
+  const [players, setPlayers] = useState<PublicPlayer[]>([]);
   const [managePlayers, setManagePlayers] = useState(false);
-  const [newPlayerName, setNewPlayerName] = useState("");
+  const [manageForm, setManageForm] = useState({
+    firstName: "",
+    lastName: "",
+    nickname: "",
+    picture: "",
+  });
+  const [editingPlayer, setEditingPlayer] = useState<PublicPlayer | null>(null);
   const [quickAddPlayer, setQuickAddPlayer] = useState(false);
-  const [quickAddName, setQuickAddName] = useState("");
+  const [quickAdd, setQuickAdd] = useState({
+    firstName: "",
+    lastName: "",
+    nickname: "",
+    picture: "",
+  });
   const [quickAddError, setQuickAddError] = useState("");
   const [quickAddSubmitting, setQuickAddSubmitting] = useState(false);
 
@@ -67,7 +87,7 @@ export default function TablesPage() {
   }, [fetchState]);
 
   const isOpen = state.tables.some((t) => t.some((s) => s !== null));
-  const occupiedSeats = state.tables.flat().filter((s): s is Seat & object => s !== null);
+  const occupiedSeats = state.tables.flat().filter((s): s is Exclude<Seat, null> => s !== null);
   const totalPlayers = occupiedSeats.length;
   const totalInPlay = occupiedSeats.reduce((sum, s) => sum + s.buyin, 0);
 
@@ -75,8 +95,8 @@ export default function TablesPage() {
     if (!modal || modal.kind !== "sit") return;
     setError("");
     const buyin = parseFloat(formBuyin);
-    if (!formName.trim()) {
-      setError("Enter your name.");
+    if (!formPlayerId.trim()) {
+      setError("Select a player.");
       return;
     }
     if (isNaN(buyin) || buyin <= 0) {
@@ -92,7 +112,7 @@ export default function TablesPage() {
           action: "sit",
           table: modal.table,
           seat: modal.seat,
-          name: formName.trim(),
+          playerId: formPlayerId.trim(),
           buyin,
         }),
       });
@@ -108,7 +128,7 @@ export default function TablesPage() {
     } finally {
       setSubmitting(false);
     }
-  }, [modal, formName, formBuyin]);
+  }, [modal, formPlayerId, formBuyin]);
 
   const handleRebuy = useCallback(async () => {
     if (!modal || modal.kind !== "rebuy") return;
@@ -177,7 +197,7 @@ export default function TablesPage() {
   }, [modal, formCashout]);
 
   const openSit = (table: number, seat: number) => {
-    setFormName("");
+    setFormPlayerId("");
     setFormBuyin("");
     setError("");
     setModal({ kind: "sit", table, seat });
@@ -189,8 +209,8 @@ export default function TablesPage() {
   };
 
   const handleQuickAddPlayer = useCallback(async () => {
-    if (!quickAddName.trim()) {
-      setQuickAddError("Enter a name.");
+    if (!quickAdd.firstName.trim() || !quickAdd.lastName.trim()) {
+      setQuickAddError("First and last name are required.");
       return;
     }
     setQuickAddSubmitting(true);
@@ -199,13 +219,19 @@ export default function TablesPage() {
       const res = await fetch("/api/players", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: quickAddName.trim() }),
+        body: JSON.stringify({
+          firstName: quickAdd.firstName.trim(),
+          lastName: quickAdd.lastName.trim(),
+          nickname: quickAdd.nickname.trim() || undefined,
+          picture: quickAdd.picture.trim() || undefined,
+        }),
       });
       const data = await res.json();
       if (res.ok && data.players) {
         setPlayers(data.players);
-        setFormName(quickAddName.trim());
+        if (typeof data.createdId === "string") setFormPlayerId(data.createdId);
         setQuickAddPlayer(false);
+        setQuickAdd({ firstName: "", lastName: "", nickname: "", picture: "" });
       } else {
         setQuickAddError(data.error || "Could not add player.");
       }
@@ -213,7 +239,7 @@ export default function TablesPage() {
       setQuickAddError("Network error.");
     }
     setQuickAddSubmitting(false);
-  }, [quickAddName]);
+  }, [quickAdd]);
 
   return (
     <div className="tables-page">
@@ -268,7 +294,12 @@ export default function TablesPage() {
         </button>
         <button
           className="history-btn"
-          onClick={() => { setManagePlayers(true); setNewPlayerName(""); setError(""); }}
+          onClick={() => {
+            setManagePlayers(true);
+            setManageForm({ firstName: "", lastName: "", nickname: "", picture: "" });
+            setEditingPlayer(null);
+            setError("");
+          }}
         >
           Manage Players
         </button>
@@ -288,14 +319,21 @@ export default function TablesPage() {
                   className={`seat seat-${si} ${s ? "seat-occupied" : "seat-empty"}`}
                   onClick={() =>
                     s
-                      ? openPlayer(ti, si, s.name, s.buyin)
+                      ? openPlayer(ti, si, seatDisplayLabel(s, players), s.buyin)
                       : openSit(ti, si)
                   }
                 >
                   <span className="seat-number">{si + 1}</span>
                   {s ? (
                     <div className="seat-info">
-                      <span className="seat-name">{s.name}</span>
+                      {seatPicture(s, players) ? (
+                        <img
+                          className="seat-avatar"
+                          src={seatPicture(s, players)}
+                          alt=""
+                        />
+                      ) : null}
+                      <span className="seat-name">{seatDisplayLabel(s, players)}</span>
                       <span className="seat-buyin">
                         ${s.buyin.toLocaleString("en-US")}
                       </span>
@@ -321,21 +359,21 @@ export default function TablesPage() {
               Player
               <select
                 className="modal-input modal-select"
-                value={formName}
+                value={formPlayerId}
                 onChange={(e) => {
                   const v = e.target.value;
                   if (v === CREATE_PLAYER) {
                     setQuickAddPlayer(true);
-                    setQuickAddName("");
+                    setQuickAdd({ firstName: "", lastName: "", nickname: "", picture: "" });
                     setQuickAddError("");
                   } else {
-                    setFormName(v);
+                    setFormPlayerId(v);
                   }
                 }}
               >
                 <option value="">Select a player</option>
                 {players.map((p) => (
-                  <option key={p} value={p}>{p}</option>
+                  <option key={p.id} value={p.id}>{p.displayName}</option>
                 ))}
                 <option value={CREATE_PLAYER}>+ Create new player</option>
               </select>
@@ -380,19 +418,49 @@ export default function TablesPage() {
           <div className="modal-card" onClick={(e) => e.stopPropagation()}>
             <h3 className="modal-title">Create new player</h3>
             <label className="modal-label">
-              Name
+              First name
               <input
                 className="modal-input"
                 type="text"
-                placeholder="Player name"
-                value={quickAddName}
-                onChange={(e) => setQuickAddName(e.target.value)}
+                autoComplete="given-name"
+                value={quickAdd.firstName}
+                onChange={(e) => setQuickAdd((q) => ({ ...q, firstName: e.target.value }))}
+              />
+            </label>
+            <label className="modal-label">
+              Last name
+              <input
+                className="modal-input"
+                type="text"
+                autoComplete="family-name"
+                value={quickAdd.lastName}
+                onChange={(e) => setQuickAdd((q) => ({ ...q, lastName: e.target.value }))}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {
                     e.preventDefault();
                     void handleQuickAddPlayer();
                   }
                 }}
+              />
+            </label>
+            <label className="modal-label">
+              Nickname <span style={{ textTransform: "none", letterSpacing: "0" }}>(optional)</span>
+              <input
+                className="modal-input"
+                type="text"
+                placeholder="Shown instead of First L."
+                value={quickAdd.nickname}
+                onChange={(e) => setQuickAdd((q) => ({ ...q, nickname: e.target.value }))}
+              />
+            </label>
+            <label className="modal-label">
+              Picture URL <span style={{ textTransform: "none", letterSpacing: "0" }}>(optional)</span>
+              <input
+                className="modal-input"
+                type="url"
+                placeholder="https://..."
+                value={quickAdd.picture}
+                onChange={(e) => setQuickAdd((q) => ({ ...q, picture: e.target.value }))}
               />
             </label>
             {quickAddError && (
@@ -856,82 +924,218 @@ export default function TablesPage() {
       {/* ───── MANAGE PLAYERS MODAL ───── */}
       {managePlayers && (
         <div className="modal-backdrop" onClick={() => setManagePlayers(false)}>
-          <div className="modal-card" onClick={(e) => e.stopPropagation()}>
+          <div className="modal-card manage-players-card" onClick={(e) => e.stopPropagation()}>
             <div className="history-header">
-              <h3 className="modal-title">Manage Players</h3>
+              <h3 className="modal-title">{editingPlayer ? "Edit player" : "Manage Players"}</h3>
               <button className="history-close" onClick={() => setManagePlayers(false)}>&times;</button>
             </div>
-            <div className="manage-add-row">
-              <input
-                className="modal-input"
-                type="text"
-                placeholder="New player name"
-                value={newPlayerName}
-                onChange={(e) => setNewPlayerName(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    if (!newPlayerName.trim()) return;
-                    fetch("/api/players", {
-                      method: "POST",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({ name: newPlayerName.trim() }),
-                    })
-                      .then((r) => r.json())
-                      .then((d) => { if (d.players) { setPlayers(d.players); setNewPlayerName(""); setError(""); } else { setError(d.error || "Failed"); } })
-                      .catch(() => setError("Network error"));
-                  }
-                }}
-              />
-              <button
-                className="modal-btn modal-btn-submit"
-                style={{ flex: "0 0 auto", width: "auto", padding: "0.7rem 1rem" }}
-                onClick={() => {
-                  if (!newPlayerName.trim()) return;
-                  fetch("/api/players", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ name: newPlayerName.trim() }),
-                  })
-                    .then((r) => r.json())
-                    .then((d) => { if (d.players) { setPlayers(d.players); setNewPlayerName(""); setError(""); } else { setError(d.error || "Failed"); } })
-                    .catch(() => setError("Network error"));
-                }}
-              >
-                Add
-              </button>
-            </div>
-            {error && <p style={{ color: "#ef4444", fontSize: "0.85rem", margin: 0 }}>{error}</p>}
-            <div className="manage-player-list">
-              {players.length === 0 ? (
-                <p className="history-empty">No players added yet.</p>
-              ) : (
-                players.map((p) => (
-                  <div key={p} className="manage-player-row">
-                    <span className="manage-player-name">{p}</span>
-                    <button
-                      className="board-delete"
-                      style={{ opacity: 1 }}
-                      onClick={async () => {
-                        try {
-                          const res = await fetch("/api/players", {
-                            method: "DELETE",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({ name: p }),
-                          });
-                          if (res.ok) {
-                            const d = await res.json();
-                            setPlayers(d.players);
-                          }
-                        } catch {}
-                      }}
-                    >
-                      &times;
-                    </button>
-                  </div>
-                ))
-              )}
-            </div>
+            {editingPlayer ? (
+              <>
+                <label className="modal-label">
+                  First name
+                  <input
+                    className="modal-input"
+                    value={manageForm.firstName}
+                    onChange={(e) => setManageForm((f) => ({ ...f, firstName: e.target.value }))}
+                  />
+                </label>
+                <label className="modal-label">
+                  Last name
+                  <input
+                    className="modal-input"
+                    value={manageForm.lastName}
+                    onChange={(e) => setManageForm((f) => ({ ...f, lastName: e.target.value }))}
+                  />
+                </label>
+                <label className="modal-label">
+                  Nickname <span style={{ textTransform: "none", letterSpacing: "0" }}>(optional)</span>
+                  <input
+                    className="modal-input"
+                    value={manageForm.nickname}
+                    onChange={(e) => setManageForm((f) => ({ ...f, nickname: e.target.value }))}
+                  />
+                </label>
+                <label className="modal-label">
+                  Picture URL <span style={{ textTransform: "none", letterSpacing: "0" }}>(optional)</span>
+                  <input
+                    className="modal-input"
+                    type="url"
+                    value={manageForm.picture}
+                    onChange={(e) => setManageForm((f) => ({ ...f, picture: e.target.value }))}
+                  />
+                </label>
+                {error && <p style={{ color: "#ef4444", fontSize: "0.85rem", margin: 0 }}>{error}</p>}
+                <div className="modal-actions">
+                  <button
+                    className="modal-btn modal-btn-cancel"
+                    onClick={() => {
+                      setEditingPlayer(null);
+                      setManageForm({ firstName: "", lastName: "", nickname: "", picture: "" });
+                      setError("");
+                    }}
+                  >
+                    Back
+                  </button>
+                  <button
+                    className="modal-btn modal-btn-submit"
+                    onClick={async () => {
+                      if (!editingPlayer || !manageForm.firstName.trim() || !manageForm.lastName.trim()) {
+                        setError("First and last name are required.");
+                        return;
+                      }
+                      try {
+                        const res = await fetch("/api/players", {
+                          method: "PATCH",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({
+                            id: editingPlayer.id,
+                            firstName: manageForm.firstName.trim(),
+                            lastName: manageForm.lastName.trim(),
+                            nickname: manageForm.nickname.trim() || null,
+                            picture: manageForm.picture.trim() || null,
+                          }),
+                        });
+                        const d = await res.json();
+                        if (res.ok && d.players) {
+                          setPlayers(d.players);
+                          setEditingPlayer(null);
+                          setManageForm({ firstName: "", lastName: "", nickname: "", picture: "" });
+                          setError("");
+                        } else setError(d.error || "Failed");
+                      } catch {
+                        setError("Network error");
+                      }
+                    }}
+                  >
+                    Save
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <p className="player-modal-buyin" style={{ marginBottom: "0.75rem" }}>
+                  Add a player (shown at tables as nickname, or First L.)
+                </p>
+                <label className="modal-label">
+                  First name
+                  <input
+                    className="modal-input"
+                    value={manageForm.firstName}
+                    onChange={(e) => setManageForm((f) => ({ ...f, firstName: e.target.value }))}
+                  />
+                </label>
+                <label className="modal-label">
+                  Last name
+                  <input
+                    className="modal-input"
+                    value={manageForm.lastName}
+                    onChange={(e) => setManageForm((f) => ({ ...f, lastName: e.target.value }))}
+                  />
+                </label>
+                <label className="modal-label">
+                  Nickname <span style={{ textTransform: "none", letterSpacing: "0" }}>(optional)</span>
+                  <input
+                    className="modal-input"
+                    value={manageForm.nickname}
+                    onChange={(e) => setManageForm((f) => ({ ...f, nickname: e.target.value }))}
+                  />
+                </label>
+                <label className="modal-label">
+                  Picture URL <span style={{ textTransform: "none", letterSpacing: "0" }}>(optional)</span>
+                  <input
+                    className="modal-input"
+                    type="url"
+                    value={manageForm.picture}
+                    onChange={(e) => setManageForm((f) => ({ ...f, picture: e.target.value }))}
+                  />
+                </label>
+                <button
+                  className="modal-btn modal-btn-submit"
+                  style={{ width: "100%" }}
+                  onClick={async () => {
+                    if (!manageForm.firstName.trim() || !manageForm.lastName.trim()) {
+                      setError("First and last name are required.");
+                      return;
+                    }
+                    setError("");
+                    try {
+                      const res = await fetch("/api/players", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                          firstName: manageForm.firstName.trim(),
+                          lastName: manageForm.lastName.trim(),
+                          nickname: manageForm.nickname.trim() || undefined,
+                          picture: manageForm.picture.trim() || undefined,
+                        }),
+                      });
+                      const d = await res.json();
+                      if (res.ok && d.players) {
+                        setPlayers(d.players);
+                        setManageForm({ firstName: "", lastName: "", nickname: "", picture: "" });
+                      } else setError(d.error || "Failed");
+                    } catch {
+                      setError("Network error");
+                    }
+                  }}
+                >
+                  Add player
+                </button>
+                {error && <p style={{ color: "#ef4444", fontSize: "0.85rem", margin: 0 }}>{error}</p>}
+                <div className="manage-player-list">
+                  {players.length === 0 ? (
+                    <p className="history-empty">No players yet.</p>
+                  ) : (
+                    players.map((p) => (
+                      <div key={p.id} className="manage-player-row">
+                        {p.picture ? (
+                          <img className="manage-player-avatar" src={p.picture} alt="" />
+                        ) : (
+                          <span className="manage-player-avatar-placeholder" aria-hidden />
+                        )}
+                        <span className="manage-player-name">{p.displayName}</span>
+                        <button
+                          type="button"
+                          className="modal-btn modal-btn-cancel"
+                          style={{ flex: "0 0 auto", padding: "0.35rem 0.6rem", fontSize: "0.7rem" }}
+                          onClick={() => {
+                            setEditingPlayer(p);
+                            setManageForm({
+                              firstName: p.firstName,
+                              lastName: p.lastName,
+                              nickname: p.nickname ?? "",
+                              picture: p.picture ?? "",
+                            });
+                            setError("");
+                          }}
+                        >
+                          Edit
+                        </button>
+                        <button
+                          className="board-delete"
+                          style={{ opacity: 1 }}
+                          onClick={async () => {
+                            try {
+                              const res = await fetch("/api/players", {
+                                method: "DELETE",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ id: p.id }),
+                              });
+                              if (res.ok) {
+                                const d = await res.json();
+                                setPlayers(d.players);
+                              }
+                            } catch {}
+                          }}
+                        >
+                          &times;
+                        </button>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}

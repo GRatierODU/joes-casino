@@ -964,6 +964,29 @@ body {
   width: 100%;
 }
 
+.seat-avatar {
+  width: 1.35rem;
+  height: 1.35rem;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  flex-shrink: 0;
+}
+
+@media (min-width: 480px) {
+  .seat-avatar {
+    width: 1.6rem;
+    height: 1.6rem;
+  }
+}
+
+@media (min-width: 1100px) {
+  .seat-avatar {
+    width: 2rem;
+    height: 2rem;
+  }
+}
+
 .seat-name {
   font-size: 0.5rem;
   font-weight: 600;
@@ -1667,6 +1690,31 @@ body {
   font-size: 0.95rem;
   font-weight: 500;
   color: #e4e0d8;
+  flex: 1;
+  min-width: 0;
+}
+
+.manage-players-card {
+  max-width: 440px;
+  max-height: 85vh;
+  overflow-y: auto;
+}
+
+.manage-player-avatar {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.manage-player-avatar-placeholder {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.06);
+  flex-shrink: 0;
 }
 
 /* ─── STATS PAGE ─── */

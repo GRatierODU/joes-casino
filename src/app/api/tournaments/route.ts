@@ -1,7 +1,9 @@
 import { Redis } from "@upstash/redis";
 import { NextRequest, NextResponse } from "next/server";
+import { playerDisplayName } from "@/lib/players";
+import { readPlayers } from "@/lib/playerStorage";
 
-type TournamentSeat = { name: string } | null;
+type TournamentSeat = { playerId: string } | { name: string } | null;
 
 type TournamentState = {
   started: boolean;
@@ -38,6 +40,14 @@ function getRedis(): Redis | null {
   const token = process.env.KV_REST_API_TOKEN ?? process.env.UPSTASH_REDIS_REST_TOKEN;
   if (!url || !token) return null;
   return new Redis({ url, token });
+}
+
+async function tournamentSeatDisplayName(redis: Redis, seat: NonNullable<TournamentSeat>): Promise<string> {
+  if ("name" in seat && seat.name) return seat.name;
+  if (!("playerId" in seat)) return "Unknown";
+  const players = await readPlayers(redis);
+  const p = players.find((x) => x.id === seat.playerId);
+  return p ? playerDisplayName(p) : "Unknown";
 }
 
 function autoAdvanceBlinds(state: TournamentState): boolean {
@@ -114,13 +124,17 @@ export async function POST(request: Request) {
 
   if (action === "register") {
     if (state.started) return NextResponse.json({ error: "Tournament already started" }, { status: 400 });
-    const { table, seat, name } = body as { table: number; seat: number; name: string };
-    if (typeof table !== "number" || typeof seat !== "number" || !name?.trim() ||
+    const { table, seat, playerId } = body as { table: number; seat: number; playerId: string };
+    if (typeof table !== "number" || typeof seat !== "number" || typeof playerId !== "string" || !playerId.trim() ||
         table < 0 || table > 1 || seat < 0 || seat > 9) {
       return NextResponse.json({ error: "Invalid input" }, { status: 400 });
     }
+    const players = await readPlayers(redis);
+    if (!players.some((p) => p.id === playerId)) {
+      return NextResponse.json({ error: "Unknown player" }, { status: 400 });
+    }
     if (state.tables[table][seat] !== null) return NextResponse.json({ error: "Seat taken" }, { status: 409 });
-    state.tables[table][seat] = { name: name.trim() };
+    state.tables[table][seat] = { playerId: playerId.trim() };
     state.registeredCount++;
     await redis.set(ACTIVE_KEY, state);
     return NextResponse.json({ state });
@@ -163,12 +177,14 @@ export async function POST(request: Request) {
     if (!player) return NextResponse.json({ error: "Seat is empty" }, { status: 400 });
 
     const placement = state.registeredCount - state.busted.length;
-    state.busted.push({ name: player.name, placement });
+    const bustName = await tournamentSeatDisplayName(redis, player);
+    state.busted.push({ name: bustName, placement });
     state.tables[table][seat] = null;
 
-    const remaining = state.tables.flat().filter((s): s is { name: string } => s !== null);
+    const remaining = state.tables.flat().filter((s): s is NonNullable<TournamentSeat> => s !== null);
     if (remaining.length === 1) {
-      state.busted.push({ name: remaining[0].name, placement: 1 });
+      const winName = await tournamentSeatDisplayName(redis, remaining[0]);
+      state.busted.push({ name: winName, placement: 1 });
       for (let t = 0; t < 2; t++) for (let s = 0; s < 10; s++) state.tables[t][s] = null;
       const result: TournamentResult = {
         date: state.createdAt,

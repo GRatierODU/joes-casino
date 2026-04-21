@@ -1,7 +1,14 @@
 import { Redis } from "@upstash/redis";
 import { NextRequest, NextResponse } from "next/server";
 
-type SessionRecord = { name: string; buyin: number; cashout: number; table: number; paid?: boolean };
+type SessionRecord = {
+  name: string;
+  buyin: number;
+  cashout: number;
+  table: number;
+  paid?: boolean;
+  playerId?: string;
+};
 
 function getRedis(): Redis | null {
   const url =

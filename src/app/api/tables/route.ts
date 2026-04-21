@@ -1,9 +1,21 @@
 import { Redis } from "@upstash/redis";
 import { NextResponse } from "next/server";
+import { playerDisplayName } from "@/lib/players";
+import { readPlayers } from "@/lib/playerStorage";
 
-type Seat = { name: string; buyin: number } | null;
+type SeatV2 = { playerId: string; buyin: number };
+type SeatLegacy = { name: string; buyin: number };
+type Seat = SeatV2 | SeatLegacy | null;
+
 type TablesState = { tables: [Seat[], Seat[]] };
-type SessionRecord = { name: string; buyin: number; cashout: number; table: number; paid?: boolean };
+type SessionRecord = {
+  name: string;
+  buyin: number;
+  cashout: number;
+  table: number;
+  paid?: boolean;
+  playerId?: string;
+};
 
 const EMPTY_STATE: TablesState = {
   tables: [Array(10).fill(null), Array(10).fill(null)],
@@ -67,14 +79,18 @@ export async function POST(request: Request) {
   const state = await getState(redis);
 
   if (action === "sit") {
-    const { name, buyin } = body as { name: string; buyin: number };
-    if (!name?.trim() || typeof buyin !== "number" || buyin <= 0) {
+    const { playerId, buyin } = body as { playerId: string; buyin: number };
+    if (typeof playerId !== "string" || !playerId || typeof buyin !== "number" || buyin <= 0) {
       return NextResponse.json({ error: "Invalid input" }, { status: 400 });
     }
     if (state.tables[table][seat] !== null) {
       return NextResponse.json({ error: "Seat taken" }, { status: 409 });
     }
-    state.tables[table][seat] = { name: name.trim(), buyin };
+    const players = await readPlayers(redis);
+    if (!players.some((p) => p.id === playerId)) {
+      return NextResponse.json({ error: "Unknown player" }, { status: 400 });
+    }
+    state.tables[table][seat] = { playerId, buyin };
   } else if (action === "update") {
     const { buyin } = body as { buyin: number };
     if (typeof buyin !== "number" || buyin <= 0) {
@@ -92,8 +108,22 @@ export async function POST(request: Request) {
       const co = typeof cashout === "number" && cashout >= 0 ? cashout : 0;
       const today = new Date().toISOString().slice(0, 10);
       const dateKey = `joes-sessions:${today}`;
+
+      let displayName: string;
+      let playerId: string | undefined;
+      if ("playerId" in current && current.playerId) {
+        const players = await readPlayers(redis);
+        const p = players.find((x) => x.id === current.playerId);
+        displayName = p ? playerDisplayName(p) : "Unknown";
+        playerId = current.playerId;
+      } else {
+        displayName = (current as SeatLegacy).name;
+        playerId = undefined;
+      }
+
       const record: SessionRecord = {
-        name: current.name,
+        name: displayName,
+        playerId,
         buyin: current.buyin,
         cashout: co,
         table,

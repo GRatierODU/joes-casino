@@ -2,8 +2,8 @@
 
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
-
-type TournamentSeat = { name: string } | null;
+import type { PublicPlayer, TournamentSeat } from "@/lib/players";
+import { tournamentSeatLabel, tournamentSeatPicture } from "@/lib/players";
 
 type TournamentState = {
   started: boolean;
@@ -67,7 +67,7 @@ type ModalState =
 export default function TournamentsPage() {
   const [state, setState] = useState<TournamentState | null>(null);
   const [modal, setModal] = useState<ModalState>(null);
-  const [formName, setFormName] = useState("");
+  const [formPlayerId, setFormPlayerId] = useState("");
   const [formBuyin, setFormBuyin] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -81,9 +81,14 @@ export default function TournamentsPage() {
 
   const CREATE_PLAYER = "__create_player__";
 
-  const [players, setPlayers] = useState<string[]>([]);
+  const [players, setPlayers] = useState<PublicPlayer[]>([]);
   const [quickAddPlayer, setQuickAddPlayer] = useState(false);
-  const [quickAddName, setQuickAddName] = useState("");
+  const [quickAdd, setQuickAdd] = useState({
+    firstName: "",
+    lastName: "",
+    nickname: "",
+    picture: "",
+  });
   const [quickAddError, setQuickAddError] = useState("");
   const [quickAddSubmitting, setQuickAddSubmitting] = useState(false);
 
@@ -145,22 +150,22 @@ export default function TournamentsPage() {
   const handleRegister = useCallback(async () => {
     if (!modal || modal.kind !== "register") return;
     setError("");
-    if (!formName.trim()) { setError("Enter a name."); return; }
+    if (!formPlayerId.trim()) { setError("Select a player."); return; }
     setSubmitting(true);
     try {
       const res = await fetch("/api/tournaments", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "register", table: modal.table, seat: modal.seat, name: formName.trim() }),
+        body: JSON.stringify({ action: "register", table: modal.table, seat: modal.seat, playerId: formPlayerId.trim() }),
       });
       if (res.ok) { setState((await res.json()).state); setModal(null); }
       else { const d = await res.json(); setError(d.error || "Failed."); }
     } catch { setError("Network error."); }
     setSubmitting(false);
-  }, [modal, formName]);
+  }, [modal, formPlayerId]);
 
   const handleQuickAddPlayer = useCallback(async () => {
-    if (!quickAddName.trim()) {
-      setQuickAddError("Enter a name.");
+    if (!quickAdd.firstName.trim() || !quickAdd.lastName.trim()) {
+      setQuickAddError("First and last name are required.");
       return;
     }
     setQuickAddSubmitting(true);
@@ -169,13 +174,19 @@ export default function TournamentsPage() {
       const res = await fetch("/api/players", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: quickAddName.trim() }),
+        body: JSON.stringify({
+          firstName: quickAdd.firstName.trim(),
+          lastName: quickAdd.lastName.trim(),
+          nickname: quickAdd.nickname.trim() || undefined,
+          picture: quickAdd.picture.trim() || undefined,
+        }),
       });
       const data = await res.json();
       if (res.ok && data.players) {
         setPlayers(data.players);
-        setFormName(quickAddName.trim());
+        if (typeof data.createdId === "string") setFormPlayerId(data.createdId);
         setQuickAddPlayer(false);
+        setQuickAdd({ firstName: "", lastName: "", nickname: "", picture: "" });
       } else {
         setQuickAddError(data.error || "Could not add player.");
       }
@@ -183,7 +194,7 @@ export default function TournamentsPage() {
       setQuickAddError("Network error.");
     }
     setQuickAddSubmitting(false);
-  }, [quickAddName]);
+  }, [quickAdd]);
 
   const handleUnregister = useCallback(async (table: number, seat: number) => {
     setSubmitting(true);
@@ -377,16 +388,19 @@ export default function TournamentsPage() {
                     <span className="felt-text">Joe&apos;s Casino</span>
                   )}
                 </div>
-                {seats.map((s, si) => (
+                {seats.map((s, si) => {
+                  const pic = s ? tournamentSeatPicture(s, players) : undefined;
+                  const label = s ? tournamentSeatLabel(s, players) : "";
+                  return (
                   <button
                     key={si}
                     className={`seat seat-${si} ${s ? "seat-occupied" : "seat-empty"} ${state.started && !s ? "seat-dead" : ""}`}
                     onClick={() => {
                       if (s) {
-                        if (state.started) setModal({ kind: "player", table: ti, seat: si, name: s.name });
-                        else setModal({ kind: "player-reg", table: ti, seat: si, name: s.name });
+                        if (state.started) setModal({ kind: "player", table: ti, seat: si, name: label });
+                        else setModal({ kind: "player-reg", table: ti, seat: si, name: label });
                       } else if (!state.started) {
-                        setFormName(""); setError("");
+                        setFormPlayerId(""); setError("");
                         setModal({ kind: "register", table: ti, seat: si });
                       }
                     }}
@@ -394,13 +408,21 @@ export default function TournamentsPage() {
                     <span className="seat-number">{si + 1}</span>
                     {s ? (
                       <div className="seat-info">
-                        <span className="seat-name">{s.name}</span>
+                        {pic ? (
+                          <img
+                            className="seat-avatar"
+                            src={pic}
+                            alt=""
+                          />
+                        ) : null}
+                        <span className="seat-name">{label}</span>
                       </div>
                     ) : (
                       <span className="seat-open-label">{state.started ? "" : "Open"}</span>
                     )}
                   </button>
-                ))}
+                  );
+                })}
               </div>
             </div>
           ))}
@@ -453,21 +475,21 @@ export default function TournamentsPage() {
               Player
               <select
                 className="modal-input modal-select"
-                value={formName}
+                value={formPlayerId}
                 onChange={(e) => {
                   const v = e.target.value;
                   if (v === CREATE_PLAYER) {
                     setQuickAddPlayer(true);
-                    setQuickAddName("");
+                    setQuickAdd({ firstName: "", lastName: "", nickname: "", picture: "" });
                     setQuickAddError("");
                   } else {
-                    setFormName(v);
+                    setFormPlayerId(v);
                   }
                 }}
               >
                 <option value="">Select a player</option>
                 {players.map((p) => (
-                  <option key={p} value={p}>{p}</option>
+                  <option key={p.id} value={p.id}>{p.displayName}</option>
                 ))}
                 <option value={CREATE_PLAYER}>+ Create new player</option>
               </select>
@@ -488,19 +510,45 @@ export default function TournamentsPage() {
           <div className="modal-card" onClick={(e) => e.stopPropagation()}>
             <h3 className="modal-title">Create new player</h3>
             <label className="modal-label">
-              Name
+              First name
               <input
                 className="modal-input"
                 type="text"
-                placeholder="Player name"
-                value={quickAddName}
-                onChange={(e) => setQuickAddName(e.target.value)}
+                value={quickAdd.firstName}
+                onChange={(e) => setQuickAdd((q) => ({ ...q, firstName: e.target.value }))}
+              />
+            </label>
+            <label className="modal-label">
+              Last name
+              <input
+                className="modal-input"
+                type="text"
+                value={quickAdd.lastName}
+                onChange={(e) => setQuickAdd((q) => ({ ...q, lastName: e.target.value }))}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {
                     e.preventDefault();
                     void handleQuickAddPlayer();
                   }
                 }}
+              />
+            </label>
+            <label className="modal-label">
+              Nickname <span style={{ textTransform: "none", letterSpacing: "0" }}>(optional)</span>
+              <input
+                className="modal-input"
+                type="text"
+                value={quickAdd.nickname}
+                onChange={(e) => setQuickAdd((q) => ({ ...q, nickname: e.target.value }))}
+              />
+            </label>
+            <label className="modal-label">
+              Picture URL <span style={{ textTransform: "none", letterSpacing: "0" }}>(optional)</span>
+              <input
+                className="modal-input"
+                type="url"
+                value={quickAdd.picture}
+                onChange={(e) => setQuickAdd((q) => ({ ...q, picture: e.target.value }))}
               />
             </label>
             {quickAddError && (

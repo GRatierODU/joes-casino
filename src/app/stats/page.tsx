@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 
 type PlayerStats = {
+  playerId?: string;
   name: string;
   totalSessions: number;
   totalBuyin: number;
@@ -21,6 +22,7 @@ type SessionWithDate = {
   cashout: number;
   table: number;
   paid?: boolean;
+  playerId?: string;
   date: string;
 };
 
@@ -37,7 +39,7 @@ function fmtDate(iso: string) {
 export default function StatsPage() {
   const [allStats, setAllStats] = useState<PlayerStats[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedPlayer, setSelectedPlayer] = useState<string | null>(null);
+  const [selectedPlayer, setSelectedPlayer] = useState<{ key: string; label: string } | null>(null);
   const [playerStats, setPlayerStats] = useState<PlayerStats | null>(null);
   const [playerSessions, setPlayerSessions] = useState<SessionWithDate[]>([]);
   const [loadingPlayer, setLoadingPlayer] = useState(false);
@@ -50,11 +52,15 @@ export default function StatsPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  const openPlayer = useCallback(async (name: string) => {
-    setSelectedPlayer(name);
+  const openPlayer = useCallback(async (playerId: string | undefined, label: string) => {
+    const key = playerId ?? `legacy:${label}`;
+    setSelectedPlayer({ key, label });
     setLoadingPlayer(true);
     try {
-      const res = await fetch(`/api/stats?player=${encodeURIComponent(name)}`);
+      const q = playerId
+        ? `playerId=${encodeURIComponent(playerId)}`
+        : `legacyName=${encodeURIComponent(label)}`;
+      const res = await fetch(`/api/stats?${q}`);
       const data = await res.json();
       setPlayerStats(data.stats ?? null);
       setPlayerSessions(data.sessions ?? []);
@@ -87,7 +93,7 @@ export default function StatsPage() {
       <div className="stats-container">
         {loading ? (
           <p className="history-empty">Loading...</p>
-        ) : !selectedPlayer ? (
+        ) : selectedPlayer === null ? (
           <>
             {allStats.length === 0 ? (
               <p className="history-empty">No session data yet. Play some games first!</p>
@@ -101,11 +107,12 @@ export default function StatsPage() {
                   <span className="stats-col">Total P/L</span>
                 </div>
                 {allStats.map((s) => {
+                  const rowKey = s.playerId ?? `legacy:${s.name}`;
                   return (
                     <button
-                      key={s.name}
+                      key={rowKey}
                       className="stats-row stats-row-clickable"
-                      onClick={() => openPlayer(s.name)}
+                      onClick={() => openPlayer(s.playerId, s.name)}
                     >
                       <span className="stats-col-name">{s.name}</span>
                       <span className="stats-col">{s.totalSessions}</span>
@@ -130,7 +137,7 @@ export default function StatsPage() {
               <p className="history-empty">Loading...</p>
             ) : playerStats ? (
               <>
-                <h2 className="stats-player-name">{playerStats.name}</h2>
+                <h2 className="stats-player-name">{selectedPlayer.label}</h2>
                 <div className="stats-cards">
                   <div className="stat-card">
                     <span className="stat-card-label">Sessions</span>
