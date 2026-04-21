@@ -80,7 +80,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ history });
   }
 
-  let state = await redis.get<TournamentState>(ACTIVE_KEY);
+  const state = await redis.get<TournamentState>(ACTIVE_KEY);
   if (state) {
     const changed = autoAdvanceBlinds(state);
     if (changed) await redis.set(ACTIVE_KEY, state);

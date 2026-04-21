@@ -114,7 +114,6 @@ export default function TournamentsPage() {
 
   useEffect(() => {
     if (!state?.started || state.paused) {
-      if (state?.paused) setTimeLeft(state.pausedRemaining);
       return;
     }
     const tick = () => {

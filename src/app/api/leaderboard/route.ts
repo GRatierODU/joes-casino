@@ -3,8 +3,6 @@ import { NextResponse } from "next/server";
 
 type Entry = { date: string; name: string; amount: number };
 
-const MAX_ROWS = 26;
-
 const defaultWinners: Entry[] = [
   { date: "2/18/26", name: "Wes", amount: 160 },
   { date: "4/8/26", name: "Ethan C", amount: 157.75 },
