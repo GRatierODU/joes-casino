@@ -6,6 +6,7 @@ import Link from "next/link";
 type PlayerStats = {
   playerId?: string;
   name: string;
+  picture?: string;
   totalSessions: number;
   totalBuyin: number;
   totalCashout: number;
@@ -36,10 +37,35 @@ function fmtDate(iso: string) {
   });
 }
 
+function StatsAvatar({
+  url,
+  label,
+  size = "row",
+}: {
+  url?: string;
+  label: string;
+  size?: "row" | "heading";
+}) {
+  const initial = (label.trim().charAt(0) || "?").toUpperCase();
+  const cls = size === "heading" ? "stats-pfp stats-pfp-lg" : "stats-pfp";
+  if (url) {
+    return <img className={cls} src={url} alt="" />;
+  }
+  return (
+    <span className={`${cls} stats-pfp-placeholder`} aria-hidden>
+      {initial}
+    </span>
+  );
+}
+
 export default function StatsPage() {
   const [allStats, setAllStats] = useState<PlayerStats[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedPlayer, setSelectedPlayer] = useState<{ key: string; label: string } | null>(null);
+  const [selectedPlayer, setSelectedPlayer] = useState<{
+    key: string;
+    label: string;
+    picture?: string;
+  } | null>(null);
   const [playerStats, setPlayerStats] = useState<PlayerStats | null>(null);
   const [playerSessions, setPlayerSessions] = useState<SessionWithDate[]>([]);
   const [loadingPlayer, setLoadingPlayer] = useState(false);
@@ -52,9 +78,9 @@ export default function StatsPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  const openPlayer = useCallback(async (playerId: string | undefined, label: string) => {
+  const openPlayer = useCallback(async (playerId: string | undefined, label: string, picture?: string) => {
     const key = playerId ?? `legacy:${label}`;
-    setSelectedPlayer({ key, label });
+    setSelectedPlayer({ key, label, picture });
     setLoadingPlayer(true);
     try {
       const q = playerId
@@ -100,7 +126,10 @@ export default function StatsPage() {
             ) : (
               <div className="stats-table">
                 <div className="stats-row stats-row-header">
-                  <span className="stats-col-name">Player</span>
+                  <span className="stats-col-name stats-col-name-with-pfp">
+                    <span className="stats-pfp-spacer" aria-hidden />
+                    Player
+                  </span>
                   <span className="stats-col">Sessions</span>
                   <span className="stats-col">Total Buy-in</span>
                   <span className="stats-col">Total Cashout</span>
@@ -112,9 +141,12 @@ export default function StatsPage() {
                     <button
                       key={rowKey}
                       className="stats-row stats-row-clickable"
-                      onClick={() => openPlayer(s.playerId, s.name)}
+                      onClick={() => openPlayer(s.playerId, s.name, s.picture)}
                     >
-                      <span className="stats-col-name">{s.name}</span>
+                      <span className="stats-col-name stats-col-name-with-pfp">
+                        <StatsAvatar url={s.picture} label={s.name} />
+                        <span className="stats-name-text">{s.name}</span>
+                      </span>
                       <span className="stats-col">{s.totalSessions}</span>
                       <span className="stats-col">{fmtDollars(s.totalBuyin)}</span>
                       <span className="stats-col">{fmtDollars(s.totalCashout)}</span>
@@ -137,7 +169,14 @@ export default function StatsPage() {
               <p className="history-empty">Loading...</p>
             ) : playerStats ? (
               <>
-                <h2 className="stats-player-name">{selectedPlayer.label}</h2>
+                <div className="stats-player-heading">
+                  <StatsAvatar
+                    size="heading"
+                    url={playerStats.picture ?? selectedPlayer.picture}
+                    label={selectedPlayer.label}
+                  />
+                  <h2 className="stats-player-name">{selectedPlayer.label}</h2>
+                </div>
                 <div className="stats-cards">
                   <div className="stat-card">
                     <span className="stat-card-label">Sessions</span>

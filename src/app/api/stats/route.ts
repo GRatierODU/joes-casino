@@ -1,5 +1,6 @@
 import { Redis } from "@upstash/redis";
 import { NextRequest, NextResponse } from "next/server";
+import { readPlayers } from "@/lib/playerStorage";
 
 type SessionRecord = {
   name: string;
@@ -20,6 +21,8 @@ function getRedis(): Redis | null {
 type PlayerStats = {
   playerId?: string;
   name: string;
+  /** Profile image URL when `playerId` matches a player with a picture */
+  picture?: string;
   totalSessions: number;
   totalBuyin: number;
   totalCashout: number;
@@ -82,6 +85,19 @@ function computeStats(sessions: SessionWithDate[]): PlayerStats[] {
   return stats;
 }
 
+async function withProfilePictures(redis: Redis, stats: PlayerStats[]): Promise<PlayerStats[]> {
+  if (stats.length === 0) return stats;
+  const players = await readPlayers(redis);
+  const picById = new Map<string, string | undefined>();
+  for (const p of players) {
+    picById.set(p.id, p.picture?.trim() || undefined);
+  }
+  return stats.map((s) => ({
+    ...s,
+    picture: s.playerId ? picById.get(s.playerId) : undefined,
+  }));
+}
+
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -98,8 +114,9 @@ export async function GET(request: NextRequest) {
       .filter((s) => s.playerId === playerIdParam)
       .sort((a, b) => b.date.localeCompare(a.date));
     const playerStats = computeStats(playerSessions);
+    const enriched = await withProfilePictures(redis, playerStats);
     return NextResponse.json({
-      stats: playerStats[0] ?? null,
+      stats: enriched[0] ?? null,
       sessions: playerSessions,
     });
   }
@@ -110,8 +127,9 @@ export async function GET(request: NextRequest) {
       .filter((s) => !s.playerId && s.name.toLowerCase() === needle)
       .sort((a, b) => b.date.localeCompare(a.date));
     const playerStats = computeStats(playerSessions);
+    const enriched = await withProfilePictures(redis, playerStats);
     return NextResponse.json({
-      stats: playerStats[0] ?? null,
+      stats: enriched[0] ?? null,
       sessions: playerSessions,
     });
   }
@@ -124,8 +142,9 @@ export async function GET(request: NextRequest) {
         .filter((s) => s.playerId === player)
         .sort((a, b) => b.date.localeCompare(a.date));
       const playerStats = computeStats(playerSessions);
+      const enriched = await withProfilePictures(redis, playerStats);
       return NextResponse.json({
-        stats: playerStats[0] ?? null,
+        stats: enriched[0] ?? null,
         sessions: playerSessions,
       });
     }
@@ -134,12 +153,13 @@ export async function GET(request: NextRequest) {
       .filter((s) => !s.playerId && s.name.toLowerCase() === needle)
       .sort((a, b) => b.date.localeCompare(a.date));
     const playerStats = computeStats(playerSessions);
+    const enriched = await withProfilePictures(redis, playerStats);
     return NextResponse.json({
-      stats: playerStats[0] ?? null,
+      stats: enriched[0] ?? null,
       sessions: playerSessions,
     });
   }
 
-  const stats = computeStats(allSessions);
+  const stats = await withProfilePictures(redis, computeStats(allSessions));
   return NextResponse.json({ stats });
 }
