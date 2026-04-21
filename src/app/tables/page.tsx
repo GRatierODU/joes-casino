@@ -36,6 +36,17 @@ export default function TablesPage() {
   const [addToBoard, setAddToBoard] = useState<{ session: SessionRecord; date: string; index: number } | null>(null);
   const [addingToBoard, setAddingToBoard] = useState(false);
 
+  const [players, setPlayers] = useState<string[]>([]);
+  const [managePlayers, setManagePlayers] = useState(false);
+  const [newPlayerName, setNewPlayerName] = useState("");
+
+  useEffect(() => {
+    fetch("/api/players")
+      .then((r) => r.json())
+      .then((d) => setPlayers(d.players ?? []))
+      .catch(() => {});
+  }, []);
+
   const fetchState = useCallback(() => {
     fetch("/api/tables")
       .then((r) => r.json())
@@ -188,6 +199,9 @@ export default function TablesPage() {
         <Link href="/tournaments" className="tables-nav-link">
           Tournaments
         </Link>
+        <Link href="/stats" className="tables-nav-link">
+          Stats
+        </Link>
       </nav>
 
       <header className="tables-header">
@@ -218,6 +232,12 @@ export default function TablesPage() {
           }}
         >
           Session History
+        </button>
+        <button
+          className="history-btn"
+          onClick={() => { setManagePlayers(true); setNewPlayerName(""); setError(""); }}
+        >
+          Manage Players
         </button>
       </header>
 
@@ -265,14 +285,17 @@ export default function TablesPage() {
               Sit Down &mdash; Table {modal.table + 1}, Seat {modal.seat + 1}
             </h3>
             <label className="modal-label">
-              Name
-              <input
-                className="modal-input"
-                type="text"
-                placeholder="Your name"
+              Player
+              <select
+                className="modal-input modal-select"
                 value={formName}
                 onChange={(e) => setFormName(e.target.value)}
-              />
+              >
+                <option value="">Select a player</option>
+                {players.map((p) => (
+                  <option key={p} value={p}>{p}</option>
+                ))}
+              </select>
             </label>
             <label className="modal-label">
               Buy-in ($)
@@ -743,6 +766,89 @@ export default function TablesPage() {
               >
                 {submitting ? "Cashing out..." : "Cash Out"}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ───── MANAGE PLAYERS MODAL ───── */}
+      {managePlayers && (
+        <div className="modal-backdrop" onClick={() => setManagePlayers(false)}>
+          <div className="modal-card" onClick={(e) => e.stopPropagation()}>
+            <div className="history-header">
+              <h3 className="modal-title">Manage Players</h3>
+              <button className="history-close" onClick={() => setManagePlayers(false)}>&times;</button>
+            </div>
+            <div className="manage-add-row">
+              <input
+                className="modal-input"
+                type="text"
+                placeholder="New player name"
+                value={newPlayerName}
+                onChange={(e) => setNewPlayerName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    if (!newPlayerName.trim()) return;
+                    fetch("/api/players", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ name: newPlayerName.trim() }),
+                    })
+                      .then((r) => r.json())
+                      .then((d) => { if (d.players) { setPlayers(d.players); setNewPlayerName(""); setError(""); } else { setError(d.error || "Failed"); } })
+                      .catch(() => setError("Network error"));
+                  }
+                }}
+              />
+              <button
+                className="modal-btn modal-btn-submit"
+                style={{ flex: "0 0 auto", width: "auto", padding: "0.7rem 1rem" }}
+                onClick={() => {
+                  if (!newPlayerName.trim()) return;
+                  fetch("/api/players", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ name: newPlayerName.trim() }),
+                  })
+                    .then((r) => r.json())
+                    .then((d) => { if (d.players) { setPlayers(d.players); setNewPlayerName(""); setError(""); } else { setError(d.error || "Failed"); } })
+                    .catch(() => setError("Network error"));
+                }}
+              >
+                Add
+              </button>
+            </div>
+            {error && <p style={{ color: "#ef4444", fontSize: "0.85rem", margin: 0 }}>{error}</p>}
+            <div className="manage-player-list">
+              {players.length === 0 ? (
+                <p className="history-empty">No players added yet.</p>
+              ) : (
+                players.map((p) => (
+                  <div key={p} className="manage-player-row">
+                    <span className="manage-player-name">{p}</span>
+                    <button
+                      className="board-delete"
+                      style={{ opacity: 1 }}
+                      onClick={async () => {
+                        try {
+                          const res = await fetch("/api/players", {
+                            method: "DELETE",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ name: p }),
+                          });
+                          if (res.ok) {
+                            const d = await res.json();
+                            setPlayers(d.players);
+                          }
+                        } catch {}
+                      }}
+                    >
+                      &times;
+                    </button>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         </div>

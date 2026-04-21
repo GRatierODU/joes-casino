@@ -1617,6 +1617,186 @@ body {
   box-shadow: 0 0 20px rgba(212, 168, 67, 0.15);
 }
 
+/* ─── MODAL SELECT DROPDOWN ─── */
+.modal-select {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23706b60' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.8rem center;
+  padding-right: 2.2rem;
+  cursor: pointer;
+}
+.modal-select option {
+  background: #161210;
+  color: #e4e0d8;
+}
+
+/* ─── MANAGE PLAYERS ─── */
+.manage-add-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: stretch;
+}
+.manage-add-row .modal-input {
+  flex: 1;
+}
+
+.manage-player-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 40vh;
+  overflow-y: auto;
+}
+
+.manage-player-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.6rem 0.8rem;
+  border-radius: 0.5rem;
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.manage-player-name {
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: #e4e0d8;
+}
+
+/* ─── STATS PAGE ─── */
+.stats-container {
+  position: relative;
+  z-index: 1;
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 0 2rem 4rem;
+}
+
+.stats-table {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.stats-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  border-radius: 0.5rem;
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.stats-row-header {
+  background: none;
+  border: none;
+  padding-bottom: 0.4rem;
+}
+.stats-row-header span {
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  color: #4a4640;
+  font-weight: 600;
+}
+
+.stats-row-clickable {
+  cursor: pointer;
+  width: 100%;
+  font-family: inherit;
+  text-align: left;
+  transition: all 0.2s ease;
+}
+.stats-row-clickable:hover {
+  background: rgba(255, 255, 255, 0.055);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.stats-col-name {
+  flex: 1;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #e4e0d8;
+}
+
+.stats-col {
+  width: 5.5rem;
+  text-align: right;
+  font-size: 0.85rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: #9e9a92;
+}
+
+@media (max-width: 600px) {
+  .stats-col { width: 4rem; font-size: 0.75rem; }
+  .stats-col-name { font-size: 0.85rem; }
+}
+
+/* Stats detail view */
+.stats-detail {
+  display: flex;
+  flex-direction: column;
+}
+
+.stats-player-name {
+  font-size: clamp(1.5rem, 4vw, 2.2rem);
+  font-weight: 800;
+  color: #faf6ee;
+  letter-spacing: -0.02em;
+  margin-bottom: 1.5rem;
+}
+
+.stats-cards {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.75rem;
+  margin-bottom: 2rem;
+}
+
+@media (min-width: 600px) {
+  .stats-cards {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+.stat-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  padding: 1rem;
+  border-radius: 0.75rem;
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.stat-card-label {
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  color: #706b60;
+  font-weight: 600;
+}
+
+.stat-card-value {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: #e4e0d8;
+  font-variant-numeric: tabular-nums;
+}
+
+.stats-sessions-title {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.3em;
+  color: var(--gold);
+  margin-bottom: 0.75rem;
+  font-weight: 600;
+}
+
 /* ─── KEYFRAMES ─── */
 @keyframes fade-in {
   from { opacity: 0; transform: translateY(20px); }

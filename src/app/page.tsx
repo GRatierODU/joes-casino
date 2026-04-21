@@ -286,6 +286,9 @@ export default function Home() {
             <Link href="/tournaments" className="home-tables-link">
               Tournaments &rarr;
             </Link>
+            <Link href="/stats" className="home-tables-link">
+              Player Stats &rarr;
+            </Link>
           </div>
           <div className="hero-scroll-cue">
             <span />

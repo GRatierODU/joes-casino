@@ -79,6 +79,15 @@ export default function TournamentsPage() {
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
   const [blindsOpen, setBlindsOpen] = useState(false);
 
+  const [players, setPlayers] = useState<string[]>([]);
+
+  useEffect(() => {
+    fetch("/api/players")
+      .then((r) => r.json())
+      .then((d) => setPlayers(d.players ?? []))
+      .catch(() => {});
+  }, []);
+
   const fetchState = useCallback(() => {
     fetch("/api/tournaments")
       .then((r) => r.json())
@@ -244,6 +253,7 @@ export default function TournamentsPage() {
       <nav className="tables-nav">
         <Link href="/" className="tables-nav-link">&larr; Leaderboard</Link>
         <Link href="/tables" className="tables-nav-link">Live Tables</Link>
+        <Link href="/stats" className="tables-nav-link">Stats</Link>
       </nav>
 
       <header className="tables-header">
@@ -407,11 +417,17 @@ export default function TournamentsPage() {
           <div className="modal-card" onClick={(e) => e.stopPropagation()}>
             <h3 className="modal-title">Register &mdash; Table {modal.table + 1}, Seat {modal.seat + 1}</h3>
             <label className="modal-label">
-              Name
-              <input
-                className="modal-input" type="text" placeholder="Player name"
-                value={formName} onChange={(e) => setFormName(e.target.value)}
-              />
+              Player
+              <select
+                className="modal-input modal-select"
+                value={formName}
+                onChange={(e) => setFormName(e.target.value)}
+              >
+                <option value="">Select a player</option>
+                {players.map((p) => (
+                  <option key={p} value={p}>{p}</option>
+                ))}
+              </select>
             </label>
             {error && <p style={{ color: "#ef4444", fontSize: "0.85rem", margin: 0 }}>{error}</p>}
             <div className="modal-actions">
