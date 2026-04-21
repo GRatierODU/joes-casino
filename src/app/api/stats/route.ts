@@ -23,6 +23,10 @@ type PlayerStats = {
   name: string;
   /** Profile image URL when `playerId` matches a player with a picture */
   picture?: string;
+  /** Present on per-player detail responses when `playerId` resolves in the roster */
+  firstName?: string;
+  lastName?: string;
+  nickname?: string;
   totalSessions: number;
   totalBuyin: number;
   totalCashout: number;
@@ -98,6 +102,24 @@ async function withProfilePictures(redis: Redis, stats: PlayerStats[]): Promise<
   }));
 }
 
+/** Adds roster first/last/nick for stats detail (registered players only). */
+async function enrichRegisteredPlayerFields(
+  redis: Redis,
+  stat: PlayerStats | null
+): Promise<PlayerStats | null> {
+  if (!stat?.playerId) return stat;
+  const players = await readPlayers(redis);
+  const p = players.find((x) => x.id === stat.playerId);
+  if (!p) return stat;
+  return {
+    ...stat,
+    picture: p.picture?.trim() || undefined,
+    firstName: p.firstName,
+    lastName: p.lastName,
+    nickname: p.nickname?.trim() || undefined,
+  };
+}
+
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -115,8 +137,9 @@ export async function GET(request: NextRequest) {
       .sort((a, b) => b.date.localeCompare(a.date));
     const playerStats = computeStats(playerSessions);
     const enriched = await withProfilePictures(redis, playerStats);
+    const stat = await enrichRegisteredPlayerFields(redis, enriched[0] ?? null);
     return NextResponse.json({
-      stats: enriched[0] ?? null,
+      stats: stat,
       sessions: playerSessions,
     });
   }
@@ -143,8 +166,9 @@ export async function GET(request: NextRequest) {
         .sort((a, b) => b.date.localeCompare(a.date));
       const playerStats = computeStats(playerSessions);
       const enriched = await withProfilePictures(redis, playerStats);
+      const stat = await enrichRegisteredPlayerFields(redis, enriched[0] ?? null);
       return NextResponse.json({
-        stats: enriched[0] ?? null,
+        stats: stat,
         sessions: playerSessions,
       });
     }

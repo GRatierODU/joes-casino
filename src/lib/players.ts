@@ -18,14 +18,19 @@ export type SeatLegacy = { name: string; buyin: number };
 
 export type TableSeat = SeatV2 | SeatLegacy | null;
 
-export function playerDisplayName(p: Pick<Player, "firstName" | "lastName" | "nickname">): string {
-  const nick = p.nickname?.trim();
-  if (nick) return nick;
+/** First name + last initial (ignores nickname). */
+export function playerFormalShortName(p: Pick<Player, "firstName" | "lastName">): string {
   const first = p.firstName.trim();
   const last = p.lastName.trim();
   if (!last) return first || "Player";
   const initial = last.charAt(0).toUpperCase() + ".";
   return `${first} ${initial}`;
+}
+
+export function playerDisplayName(p: Pick<Player, "firstName" | "lastName" | "nickname">): string {
+  const nick = p.nickname?.trim();
+  if (nick) return nick;
+  return playerFormalShortName(p);
 }
 
 export function toPublicPlayer(p: Player): PublicPlayer {
