@@ -2,7 +2,12 @@ import { Redis } from "@upstash/redis";
 import { NextRequest, NextResponse } from "next/server";
 import { playerDisplayName } from "@/lib/players";
 import { readPlayers } from "@/lib/playerStorage";
-import { BLIND_DURATION, BLIND_LEVELS } from "@/lib/tournamentBlinds";
+import {
+  BLIND_DURATION,
+  resolveTournamentSchedule,
+  TOURNAMENT_SCHEDULE_VERSION,
+} from "@/lib/tournamentBlinds";
+import { withTopThreePayouts } from "@/lib/tournamentPayouts";
 
 type TournamentSeat = { playerId: string } | { name: string } | null;
 
@@ -17,12 +22,14 @@ type TournamentState = {
   busted: { name: string; placement: number }[];
   registeredCount: number;
   createdAt: string;
+  /** New tournaments only; omitted = legacy blind structure + 15 min levels */
+  scheduleVersion?: number;
 };
 
 type TournamentResult = {
   date: string;
   buyin: number;
-  players: { name: string; placement: number }[];
+  players: { name: string; placement: number; payout?: number }[];
   totalPot: number;
 };
 
@@ -45,16 +52,17 @@ async function tournamentSeatDisplayName(redis: Redis, seat: NonNullable<Tournam
 }
 
 function autoAdvanceBlinds(state: TournamentState): boolean {
+  const { levels, duration } = resolveTournamentSchedule(state);
   if (!state.started || state.paused) return false;
-  if (state.blindLevel >= BLIND_LEVELS.length - 1) return false;
+  if (state.blindLevel >= levels.length - 1) return false;
   const now = Date.now();
   const elapsed = (now - state.blindStartedAt) / 1000;
-  const levelsToAdvance = Math.floor(elapsed / BLIND_DURATION);
+  const levelsToAdvance = Math.floor(elapsed / duration);
   if (levelsToAdvance > 0) {
-    const newLevel = Math.min(state.blindLevel + levelsToAdvance, BLIND_LEVELS.length - 1);
+    const newLevel = Math.min(state.blindLevel + levelsToAdvance, levels.length - 1);
     const actual = newLevel - state.blindLevel;
     state.blindLevel = newLevel;
-    state.blindStartedAt += actual * BLIND_DURATION * 1000;
+    state.blindStartedAt += actual * duration * 1000;
     return true;
   }
   return false;
@@ -66,7 +74,12 @@ export async function GET(request: NextRequest) {
 
   if (!redis) {
     if (wantHistory) return NextResponse.json({ history: [] });
-    return NextResponse.json({ state: null, blindLevels: BLIND_LEVELS, blindDuration: BLIND_DURATION });
+    const def = resolveTournamentSchedule({ scheduleVersion: TOURNAMENT_SCHEDULE_VERSION });
+    return NextResponse.json({
+      state: null,
+      blindLevels: def.levels,
+      blindDuration: def.duration,
+    });
   }
 
   if (wantHistory) {
@@ -79,7 +92,14 @@ export async function GET(request: NextRequest) {
     const changed = autoAdvanceBlinds(state);
     if (changed) await redis.set(ACTIVE_KEY, state);
   }
-  return NextResponse.json({ state, blindLevels: BLIND_LEVELS, blindDuration: BLIND_DURATION });
+  const resolved = state
+    ? resolveTournamentSchedule(state)
+    : resolveTournamentSchedule({ scheduleVersion: TOURNAMENT_SCHEDULE_VERSION });
+  return NextResponse.json({
+    state,
+    blindLevels: resolved.levels,
+    blindDuration: resolved.duration,
+  });
 }
 
 export async function POST(request: Request) {
@@ -107,6 +127,7 @@ export async function POST(request: Request) {
       busted: [],
       registeredCount: 0,
       createdAt: new Date().toISOString().slice(0, 10),
+      scheduleVersion: TOURNAMENT_SCHEDULE_VERSION,
     };
     await redis.set(ACTIVE_KEY, state);
     return NextResponse.json({ state });
@@ -115,6 +136,7 @@ export async function POST(request: Request) {
   const state = await redis.get<TournamentState>(ACTIVE_KEY);
   if (!state) return NextResponse.json({ error: "No active tournament" }, { status: 404 });
   autoAdvanceBlinds(state);
+  const { duration: blindDurationSec } = resolveTournamentSchedule(state);
 
   if (action === "register") {
     if (state.started) return NextResponse.json({ error: "Tournament already started" }, { status: 400 });
@@ -155,7 +177,7 @@ export async function POST(request: Request) {
     state.blindLevel = 0;
     state.blindStartedAt = Date.now();
     state.paused = false;
-    state.pausedRemaining = BLIND_DURATION;
+    state.pausedRemaining = blindDurationSec;
     await redis.set(ACTIVE_KEY, state);
     return NextResponse.json({ state });
   }
@@ -180,11 +202,13 @@ export async function POST(request: Request) {
       const winName = await tournamentSeatDisplayName(redis, remaining[0]);
       state.busted.push({ name: winName, placement: 1 });
       for (let t = 0; t < 2; t++) for (let s = 0; s < 10; s++) state.tables[t][s] = null;
+      const sorted = [...state.busted].sort((a, b) => a.placement - b.placement);
+      const totalPot = state.buyin * state.registeredCount;
       const result: TournamentResult = {
         date: state.createdAt,
         buyin: state.buyin,
-        players: [...state.busted].sort((a, b) => a.placement - b.placement),
-        totalPot: state.buyin * state.registeredCount,
+        players: withTopThreePayouts(sorted, totalPot),
+        totalPot,
       };
       const history = (await redis.get<TournamentResult[]>(HISTORY_KEY)) ?? [];
       history.unshift(result);
@@ -193,11 +217,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ state: null, result, finished: true });
     }
     if (remaining.length === 0) {
+      const sorted = [...state.busted].sort((a, b) => a.placement - b.placement);
+      const totalPot = state.buyin * state.registeredCount;
       const result: TournamentResult = {
         date: state.createdAt,
         buyin: state.buyin,
-        players: [...state.busted].sort((a, b) => a.placement - b.placement),
-        totalPot: state.buyin * state.registeredCount,
+        players: withTopThreePayouts(sorted, totalPot),
+        totalPot,
       };
       const history = (await redis.get<TournamentResult[]>(HISTORY_KEY)) ?? [];
       history.unshift(result);
@@ -231,10 +257,10 @@ export async function POST(request: Request) {
     if (!state.started) return NextResponse.json({ error: "Not started" }, { status: 400 });
     if (state.paused) {
       state.paused = false;
-      state.blindStartedAt = Date.now() - (BLIND_DURATION - state.pausedRemaining) * 1000;
+      state.blindStartedAt = Date.now() - (blindDurationSec - state.pausedRemaining) * 1000;
     } else {
       const elapsed = (Date.now() - state.blindStartedAt) / 1000;
-      state.pausedRemaining = Math.max(0, BLIND_DURATION - elapsed);
+      state.pausedRemaining = Math.max(0, blindDurationSec - elapsed);
       state.paused = true;
     }
     await redis.set(ACTIVE_KEY, state);

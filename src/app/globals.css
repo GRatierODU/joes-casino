@@ -1323,6 +1323,18 @@ body {
   color: #9e9a92;
 }
 
+.session-col-place {
+  width: 3.75rem;
+  flex-shrink: 0;
+}
+
+.session-col-payout {
+  width: 4.25rem;
+  flex-shrink: 0;
+  color: var(--gold);
+  font-weight: 700;
+}
+
 .session-profit {
   color: var(--green);
 }
@@ -1545,6 +1557,27 @@ body {
   font-size: 0.95rem;
   font-weight: 500;
   color: #e4e0d8;
+  min-width: 0;
+}
+
+.tourney-standing-payout {
+  flex-shrink: 0;
+  min-width: 3.75rem;
+  text-align: right;
+  font-size: 0.85rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--gold);
+}
+
+.tourney-payout-note {
+  margin: 0.2rem 0 0.45rem;
+  text-align: center;
+  font-size: 0.62rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #6f6a60;
+  font-weight: 600;
 }
 
 /* ─── TOURNAMENT: BLIND SCHEDULE ─── */

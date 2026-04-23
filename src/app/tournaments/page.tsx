@@ -22,12 +22,13 @@ type TournamentState = {
   busted: { name: string; placement: number }[];
   registeredCount: number;
   createdAt: string;
+  scheduleVersion?: number;
 };
 
 type TournamentResult = {
   date: string;
   buyin: number;
-  players: { name: string; placement: number }[];
+  players: { name: string; placement: number; payout?: number }[];
   totalPot: number;
 };
 
@@ -51,6 +52,14 @@ function fmtDate(iso: string) {
   return new Date(iso + "T12:00:00").toLocaleDateString("en-US", {
     weekday: "short", month: "short", day: "numeric", year: "numeric",
   });
+}
+
+function fmtMoney(n: number): string {
+  return (
+    (n < 0 ? "-" : "") +
+    "$" +
+    Math.abs(n).toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 2 })
+  );
 }
 
 type ModalState =
@@ -77,6 +86,8 @@ export default function TournamentsPage() {
   const [history, setHistory] = useState<TournamentResult[]>([]);
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
   const [blindsOpen, setBlindsOpen] = useState(false);
+  const [blindLevels, setBlindLevels] = useState<[number, number][]>(BLIND_LEVELS);
+  const [blindDuration, setBlindDuration] = useState(BLIND_DURATION);
 
   const CREATE_PLAYER = "__create_player__";
 
@@ -101,7 +112,15 @@ export default function TournamentsPage() {
   const fetchState = useCallback(() => {
     fetch("/api/tournaments")
       .then((r) => r.json())
-      .then((d) => setState(d.state))
+      .then((d) => {
+        setState(d.state);
+        if (Array.isArray(d.blindLevels) && d.blindLevels.length > 0) {
+          setBlindLevels(d.blindLevels as [number, number][]);
+        }
+        if (typeof d.blindDuration === "number") {
+          setBlindDuration(d.blindDuration);
+        }
+      })
       .catch(() => {});
   }, []);
 
@@ -117,17 +136,24 @@ export default function TournamentsPage() {
     }
     const tick = () => {
       const elapsed = (Date.now() - state.blindStartedAt) / 1000;
-      setTimeLeft(Math.max(0, BLIND_DURATION - elapsed));
+      setTimeLeft(Math.max(0, blindDuration - elapsed));
     };
     tick();
     const id = setInterval(tick, 1000);
     return () => clearInterval(id);
-  }, [state?.started, state?.blindStartedAt, state?.paused, state?.pausedRemaining, state?.blindLevel]);
+  }, [
+    state?.started,
+    state?.blindStartedAt,
+    state?.paused,
+    state?.pausedRemaining,
+    state?.blindLevel,
+    blindDuration,
+  ]);
 
   const activePlayers = state ? state.tables.flat().filter((s) => s !== null).length : 0;
-  const blindIdx = state ? Math.min(state.blindLevel, BLIND_LEVELS.length - 1) : 0;
-  const currentBlinds = BLIND_LEVELS[blindIdx];
-  const nextBlinds = blindIdx < BLIND_LEVELS.length - 1 ? BLIND_LEVELS[blindIdx + 1] : null;
+  const blindIdx = state ? Math.min(state.blindLevel, blindLevels.length - 1) : 0;
+  const currentBlinds = blindLevels[blindIdx];
+  const nextBlinds = blindIdx < blindLevels.length - 1 ? blindLevels[blindIdx + 1] : null;
 
   const handleCreate = useCallback(async () => {
     setError("");
@@ -724,6 +750,7 @@ export default function TournamentsPage() {
               <p className="player-modal-buyin" style={{ textAlign: "center" }}>
                 Pot: <strong>${finished.totalPot.toLocaleString("en-US")}</strong>
               </p>
+              <p className="tourney-payout-note">Top 3: 50% / 30% / 20%</p>
               <div className="tourney-standings">
                 {finished.players.map((p, i) => (
                   <div key={i} className="tourney-standing-row">
@@ -731,6 +758,9 @@ export default function TournamentsPage() {
                       {p.placement === 1 ? "\uD83C\uDFC6" : `${p.placement}${ordSuffix(p.placement)}`}
                     </span>
                     <span className="tourney-standing-name">{p.name}</span>
+                    <span className="tourney-standing-payout">
+                      {typeof p.payout === "number" && p.payout > 0 ? fmtMoney(p.payout) : "—"}
+                    </span>
                   </div>
                 ))}
               </div>
@@ -748,10 +778,10 @@ export default function TournamentsPage() {
           <div className="modal-card" onClick={(e) => e.stopPropagation()}>
             <h3 className="modal-title">Blind Schedule</h3>
             <p className="player-modal-buyin" style={{ textAlign: "center", marginBottom: "0.5rem" }}>
-              20 minutes per level
+              {Math.round(blindDuration / 60)} minutes per level
             </p>
             <div className="tourney-blind-schedule">
-              {BLIND_LEVELS.flatMap(([sm, big], i) => {
+              {blindLevels.flatMap(([sm, big], i) => {
                 const row = (
                   <div
                     key={`lvl-${i}`}
@@ -817,13 +847,17 @@ export default function TournamentsPage() {
                   <div className="session-row session-row-header">
                     <span className="session-col-paid"></span>
                     <span className="session-col-name">Player</span>
-                    <span className="session-col">Place</span>
+                    <span className="session-col session-col-place">Place</span>
+                    <span className="session-col session-col-payout">Payout</span>
                   </div>
                   {history[selectedIdx].players.map((p, i) => (
                     <div key={i} className="session-row">
                       <span className="session-col-paid">{p.placement === 1 ? "\uD83C\uDFC6" : ""}</span>
                       <span className="session-col-name">{p.name}</span>
-                      <span className="session-col">{p.placement}{ordSuffix(p.placement)}</span>
+                      <span className="session-col session-col-place">{p.placement}{ordSuffix(p.placement)}</span>
+                      <span className="session-col session-col-payout">
+                        {typeof p.payout === "number" && p.payout > 0 ? fmtMoney(p.payout) : "—"}
+                      </span>
                     </div>
                   ))}
                 </div>
