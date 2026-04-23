@@ -34,7 +34,8 @@ export async function GET(request: NextRequest) {
   }
 
   const dates = (await redis.get<string[]>("joes-session-dates")) ?? [];
-  return NextResponse.json({ dates });
+  const uniqueSorted = [...new Set(dates)].sort((a, b) => b.localeCompare(a));
+  return NextResponse.json({ dates: uniqueSorted });
 }
 
 export async function PATCH(request: NextRequest) {

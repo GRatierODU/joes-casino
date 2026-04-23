@@ -2,6 +2,8 @@ import { Redis } from "@upstash/redis";
 import { NextResponse } from "next/server";
 import { playerDisplayName } from "@/lib/players";
 import { readPlayers } from "@/lib/playerStorage";
+import { appendSessionForDay } from "@/lib/sessionAppend";
+import { sessionCalendarDateISO } from "@/lib/sessionDate";
 
 type SeatV2 = { playerId: string; buyin: number };
 type SeatLegacy = { name: string; buyin: number };
@@ -106,8 +108,8 @@ export async function POST(request: Request) {
     if (current) {
       const { cashout } = body as { cashout: number };
       const co = typeof cashout === "number" && cashout >= 0 ? cashout : 0;
-      const today = new Date().toISOString().slice(0, 10);
-      const dateKey = `joes-sessions:${today}`;
+      const casinoDay = sessionCalendarDateISO();
+      const dateKey = `joes-sessions:${casinoDay}`;
 
       let displayName: string;
       let playerId: string | undefined;
@@ -128,14 +130,7 @@ export async function POST(request: Request) {
         cashout: co,
         table,
       };
-      const existing = (await redis.get<SessionRecord[]>(dateKey)) ?? [];
-      existing.push(record);
-      await redis.set(dateKey, existing);
-      const dates = (await redis.get<string[]>("joes-session-dates")) ?? [];
-      if (!dates.includes(today)) {
-        dates.unshift(today);
-        await redis.set("joes-session-dates", dates);
-      }
+      await appendSessionForDay(redis, dateKey, casinoDay, record);
     }
     state.tables[table][seat] = null;
   } else if (action === "move") {
