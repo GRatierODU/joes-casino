@@ -2,6 +2,7 @@ import { Redis } from "@upstash/redis";
 import { NextRequest, NextResponse } from "next/server";
 import { playerDisplayName } from "@/lib/players";
 import { readPlayers } from "@/lib/playerStorage";
+import { BLIND_DURATION, BLIND_LEVELS } from "@/lib/tournamentBlinds";
 
 type TournamentSeat = { playerId: string } | { name: string } | null;
 
@@ -24,13 +25,6 @@ type TournamentResult = {
   players: { name: string; placement: number }[];
   totalPot: number;
 };
-
-const BLIND_LEVELS: [number, number][] = [
-  [1, 2], [2, 4], [3, 6], [5, 10], [10, 20],
-  [15, 30], [20, 40], [25, 50], [50, 100],
-  [75, 150], [100, 200], [150, 300], [200, 400],
-];
-const BLIND_DURATION = 15 * 60;
 
 const ACTIVE_KEY = "joes-tournament-active";
 const HISTORY_KEY = "joes-tournament-history";

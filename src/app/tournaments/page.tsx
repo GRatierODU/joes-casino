@@ -4,6 +4,12 @@ import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import type { PublicPlayer, TournamentSeat } from "@/lib/players";
 import { tournamentSeatLabel, tournamentSeatPicture } from "@/lib/players";
+import {
+  BLIND_BREAK_BEFORE_LEVEL_INDEX,
+  BLIND_DURATION,
+  BLIND_LEVELS,
+  formatBlindLevel,
+} from "@/lib/tournamentBlinds";
 
 type TournamentState = {
   started: boolean;
@@ -24,13 +30,6 @@ type TournamentResult = {
   players: { name: string; placement: number }[];
   totalPot: number;
 };
-
-const BLIND_LEVELS: [number, number][] = [
-  [1, 2], [2, 4], [3, 6], [5, 10], [10, 20],
-  [15, 30], [20, 40], [25, 50], [50, 100],
-  [75, 150], [100, 200], [150, 300], [200, 400],
-];
-const BLIND_DURATION = 15 * 60;
 
 function fmtTime(sec: number): string {
   const m = Math.floor(sec / 60);
@@ -377,11 +376,17 @@ export default function TournamentsPage() {
                   {state.started ? (
                     <div className="felt-blinds">
                       <span className="felt-level">Level {state.blindLevel + 1}</span>
-                      <span className="felt-blind-value">{currentBlinds[0]} / {currentBlinds[1]}</span>
+                      <span className="felt-blind-value">
+                        {formatBlindLevel(currentBlinds[0], currentBlinds[1])}
+                      </span>
                       <span className={`felt-timer ${timeLeft < 60 ? "felt-timer-warning" : ""} ${state.paused ? "felt-timer-paused" : ""}`}>
                         {state.paused ? "PAUSED" : fmtTime(timeLeft)}
                       </span>
-                      {nextBlinds && <span className="felt-next">Next: {nextBlinds[0]}/{nextBlinds[1]}</span>}
+                      {nextBlinds && (
+                        <span className="felt-next">
+                          Next: {formatBlindLevel(nextBlinds[0], nextBlinds[1])}
+                        </span>
+                      )}
                     </div>
                   ) : (
                     <span className="felt-text">Joe&apos;s Casino</span>
@@ -743,18 +748,28 @@ export default function TournamentsPage() {
           <div className="modal-card" onClick={(e) => e.stopPropagation()}>
             <h3 className="modal-title">Blind Schedule</h3>
             <p className="player-modal-buyin" style={{ textAlign: "center", marginBottom: "0.5rem" }}>
-              15 minutes per level
+              20 minutes per level
             </p>
             <div className="tourney-blind-schedule">
-              {BLIND_LEVELS.map(([sm, big], i) => (
-                <div
-                  key={i}
-                  className={`tourney-blind-row ${state?.started && state.blindLevel === i ? "tourney-blind-active" : ""}`}
-                >
-                  <span className="tourney-blind-level">Level {i + 1}</span>
-                  <span className="tourney-blind-amount">{sm} / {big}</span>
-                </div>
-              ))}
+              {BLIND_LEVELS.flatMap(([sm, big], i) => {
+                const row = (
+                  <div
+                    key={`lvl-${i}`}
+                    className={`tourney-blind-row ${state?.started && state.blindLevel === i ? "tourney-blind-active" : ""}`}
+                  >
+                    <span className="tourney-blind-level">Level {i + 1}</span>
+                    <span className="tourney-blind-amount">{formatBlindLevel(sm, big)}</span>
+                  </div>
+                );
+                return i === BLIND_BREAK_BEFORE_LEVEL_INDEX
+                  ? [
+                      <div key="blind-break" className="tourney-blind-break" role="separator">
+                        Break & color up
+                      </div>,
+                      row,
+                    ]
+                  : [row];
+              })}
             </div>
             <button className="modal-btn modal-btn-cancel" style={{ marginTop: "0.5rem" }} onClick={() => setBlindsOpen(false)}>
               Close

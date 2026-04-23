@@ -1591,6 +1591,20 @@ body {
   color: #e4e0d8;
 }
 
+.tourney-blind-break {
+  margin: 0.35rem 0 0.45rem;
+  padding: 0.45rem 0.65rem;
+  text-align: center;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--gold);
+  border-top: 1px solid rgba(201, 169, 98, 0.25);
+  border-bottom: 1px solid rgba(201, 169, 98, 0.25);
+  background: rgba(201, 169, 98, 0.06);
+}
+
 /* ─── TOURNAMENT: HISTORY CARD ─── */
 .tourney-history-btn {
   display: flex;
