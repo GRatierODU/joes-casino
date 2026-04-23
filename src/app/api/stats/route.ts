@@ -90,18 +90,19 @@ function computeStats(sessions: SessionWithDate[]): PlayerStats[] {
   return stats;
 }
 
-/** Roster players who never cashed out (no session rows) still appear with zeros. */
-function mergeRosterIntoStats(stats: PlayerStats[], roster: Player[]): PlayerStats[] {
+/** Roster players who never appear in sessions (so they still show on the stats list). */
+function mergeRosterWithoutSessions(stats: PlayerStats[], players: Player[]): PlayerStats[] {
   const seen = new Set<string>();
   for (const s of stats) {
     if (s.playerId) seen.add(s.playerId);
   }
   const extra: PlayerStats[] = [];
-  for (const p of roster) {
+  for (const p of players) {
     if (seen.has(p.id)) continue;
     extra.push({
       playerId: p.id,
       name: playerDisplayName(p),
+      picture: p.picture?.trim() || undefined,
       totalSessions: 0,
       totalBuyin: 0,
       totalCashout: 0,
@@ -114,8 +115,9 @@ function mergeRosterIntoStats(stats: PlayerStats[], roster: Player[]): PlayerSta
   }
   const merged = [...stats, ...extra];
   merged.sort((a, b) => {
-    if (b.totalPL !== a.totalPL) return b.totalPL - a.totalPL;
-    return a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
+    const pl = b.totalPL - a.totalPL;
+    if (pl !== 0) return pl;
+    return a.name.toLowerCase().localeCompare(b.name.toLowerCase());
   });
   return merged;
 }
@@ -154,40 +156,6 @@ async function enrichRegisteredPlayerFields(
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-async function detailByPlayerId(
-  redis: Redis,
-  allSessions: SessionWithDate[],
-  playerId: string
-): Promise<{ stats: PlayerStats | null; sessions: SessionWithDate[] }> {
-  const playerSessions = allSessions
-    .filter((s) => s.playerId === playerId)
-    .sort((a, b) => b.date.localeCompare(a.date));
-  if (playerSessions.length > 0) {
-    const playerStats = computeStats(playerSessions);
-    const enriched = await withProfilePictures(redis, playerStats);
-    const stat = await enrichRegisteredPlayerFields(redis, enriched[0] ?? null);
-    return { stats: stat, sessions: playerSessions };
-  }
-  const roster = await readPlayers(redis);
-  const p = roster.find((x) => x.id === playerId);
-  if (!p) return { stats: null, sessions: [] };
-  const zero: PlayerStats = {
-    playerId: p.id,
-    name: playerDisplayName(p),
-    totalSessions: 0,
-    totalBuyin: 0,
-    totalCashout: 0,
-    totalPL: 0,
-    avgBuyin: 0,
-    avgPL: 0,
-    bestSession: 0,
-    worstSession: 0,
-  };
-  const enriched = await withProfilePictures(redis, [zero]);
-  const stat = await enrichRegisteredPlayerFields(redis, enriched[0] ?? null);
-  return { stats: stat, sessions: [] };
-}
-
 export async function GET(request: NextRequest) {
   const redis = getRedis();
   if (!redis) return NextResponse.json({ stats: [], sessions: [] });
@@ -197,12 +165,16 @@ export async function GET(request: NextRequest) {
   const allSessions = await getAllSessions(redis);
 
   if (playerIdParam) {
-    const { stats: stat, sessions: playerSessions } = await detailByPlayerId(
-      redis,
-      allSessions,
-      playerIdParam
-    );
-    return NextResponse.json({ stats: stat, sessions: playerSessions });
+    const playerSessions = allSessions
+      .filter((s) => s.playerId === playerIdParam)
+      .sort((a, b) => b.date.localeCompare(a.date));
+    const playerStats = computeStats(playerSessions);
+    const enriched = await withProfilePictures(redis, playerStats);
+    const stat = await enrichRegisteredPlayerFields(redis, enriched[0] ?? null);
+    return NextResponse.json({
+      stats: stat,
+      sessions: playerSessions,
+    });
   }
 
   if (legacyName) {
@@ -222,8 +194,16 @@ export async function GET(request: NextRequest) {
   const player = request.nextUrl.searchParams.get("player");
   if (player) {
     if (UUID_RE.test(player)) {
-      const { stats: stat, sessions: playerSessions } = await detailByPlayerId(redis, allSessions, player);
-      return NextResponse.json({ stats: stat, sessions: playerSessions });
+      const playerSessions = allSessions
+        .filter((s) => s.playerId === player)
+        .sort((a, b) => b.date.localeCompare(a.date));
+      const playerStats = computeStats(playerSessions);
+      const enriched = await withProfilePictures(redis, playerStats);
+      const stat = await enrichRegisteredPlayerFields(redis, enriched[0] ?? null);
+      return NextResponse.json({
+        stats: stat,
+        sessions: playerSessions,
+      });
     }
     const needle = player.toLowerCase();
     const playerSessions = allSessions
@@ -237,8 +217,9 @@ export async function GET(request: NextRequest) {
     });
   }
 
-  const roster = await readPlayers(redis);
-  const merged = mergeRosterIntoStats(computeStats(allSessions), roster);
+  const players = await readPlayers(redis);
+  const fromSessions = computeStats(allSessions);
+  const merged = mergeRosterWithoutSessions(fromSessions, players);
   const stats = await withProfilePictures(redis, merged);
   return NextResponse.json({ stats });
 }

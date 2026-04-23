@@ -183,9 +183,7 @@ export default function StatsPage() {
 
       <header className="tables-header">
         <h1 className="tables-title">Player Stats</h1>
-        <p className="tables-sub">
-          Cash game totals from table sessions. Everyone on Manage Players is listed; no sessions yet shows as zeros.
-        </p>
+        <p className="tables-sub">Everyone on the roster; numbers come from table cash-outs</p>
       </header>
 
       <div className="stats-container">
@@ -194,7 +192,7 @@ export default function StatsPage() {
         ) : selectedPlayer === null ? (
           <>
             {allStats.length === 0 ? (
-              <p className="history-empty">No players in the roster yet. Add them from Live Tables → Manage Players.</p>
+              <p className="history-empty">No players or session history yet.</p>
             ) : (
               <div className="stats-table">
                 <div className="stats-row stats-row-header">
