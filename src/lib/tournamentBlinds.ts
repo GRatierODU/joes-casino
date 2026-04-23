@@ -44,7 +44,7 @@ export const BLIND_DURATION = 20 * 60;
 export const BLIND_BREAK_BEFORE_LEVEL_INDEX = 5;
 
 export function formatBlindChips(n: number): string {
-  if (n === 0.5) return "$.5";
+  if (n === 0.5) return "$0.5";
   if (Number.isInteger(n)) return `$${n}`;
   return `$${n}`;
 }
