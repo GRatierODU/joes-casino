@@ -176,10 +176,6 @@ export default function BadBeatsPage() {
       <header className="bad-beats-header">
         <p className="bad-beats-eyebrow">Joe&apos;s Casino</p>
         <h1 className="bad-beats-title">Bad Beats Hall of Fame</h1>
-        <p className="bad-beats-sub">
-          Every entry is a full table: players in seats, hole cards, and the five-card
-          runout in the middle.
-        </p>
       </header>
 
       <main className="bad-beats-main">
