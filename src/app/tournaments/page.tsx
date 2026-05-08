@@ -322,6 +322,7 @@ export default function TournamentsPage() {
         <Link href="/" className="tables-nav-link">&larr; Leaderboard</Link>
         <Link href="/tables" className="tables-nav-link">Live Tables</Link>
         <Link href="/stats" className="tables-nav-link">Stats</Link>
+        <Link href="/bad-beats" className="tables-nav-link">Bad Beats</Link>
       </nav>
 
       <header className="tables-header">

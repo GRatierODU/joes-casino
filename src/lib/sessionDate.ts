@@ -1,6 +1,7 @@
 /**
- * Calendar date (YYYY-MM-DD) for bucketing cash-game sessions.
- * Uses a fixed IANA timezone so "tonight" matches what hosts expect (not UTC server midnight).
+ * Calendar date (YYYY-MM-DD) in the configured casino timezone.
+ * Session history is bucketed by this value captured when the player sits (stored on the seat);
+ * this helper is also used for "today" and for legacy seats without a stored day (cash-out time).
  * Override with `SESSIONS_TIMEZONE` (e.g. `America/Los_Angeles`).
  */
 export function sessionCalendarDateISO(when: Date = new Date()): string {

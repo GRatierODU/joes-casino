@@ -689,6 +689,787 @@ body {
   overflow: hidden;
 }
 
+.tables-page--behind-gate {
+  filter: blur(22px);
+  pointer-events: none;
+  user-select: none;
+}
+
+.tables-gate-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  animation: fade-in 0.2s ease both;
+}
+
+.tables-gate-card {
+  max-width: 380px;
+  width: 100%;
+}
+
+.tables-gate-hint {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #9e9a92;
+  line-height: 1.45;
+}
+
+.tables-gate-error {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #e87373;
+}
+
+.tables-gate-loading {
+  margin: 0;
+  color: var(--gold);
+  font-size: 0.95rem;
+  letter-spacing: 0.04em;
+}
+
+/* ─── BAD BEATS HALL OF FAME ─── */
+.bad-beats-page {
+  min-height: 100vh;
+  background: var(--background);
+  padding-bottom: 5rem;
+  position: relative;
+  overflow: hidden;
+}
+
+.bad-beats-page .tables-nav {
+  position: relative;
+  z-index: 1;
+}
+
+.bad-beats-page .suit-1 {
+  top: 8%;
+  left: 6%;
+}
+.bad-beats-page .suit-2 {
+  top: 6%;
+  right: 5%;
+}
+.bad-beats-page .suit-3 {
+  top: 45%;
+  left: 46%;
+}
+.bad-beats-page .suit-4 {
+  bottom: 6%;
+  right: 40%;
+}
+.bad-beats-page .suit-5 {
+  bottom: 5%;
+  left: 3%;
+  animation-delay: 2s;
+}
+.bad-beats-page .suit-6 {
+  bottom: 5%;
+  right: 3%;
+  animation-delay: 5.5s;
+}
+
+.bad-beats-header {
+  position: relative;
+  z-index: 1;
+  text-align: center;
+  padding: 2rem 1.5rem 2rem;
+}
+
+.bad-beats-eyebrow {
+  margin: 0 0 0.5rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: var(--gold-dim);
+}
+
+.bad-beats-title {
+  margin: 0 0 0.75rem;
+  font-size: clamp(1.75rem, 4.5vw, 2.75rem);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: #faf6ee;
+}
+
+.bad-beats-sub {
+  margin: 0 auto;
+  max-width: 26rem;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: #9e9a92;
+}
+
+.bad-beats-main {
+  position: relative;
+  z-index: 1;
+  max-width: 40rem;
+  margin: 0 auto;
+  padding: 0 1.25rem 2.5rem;
+}
+
+.bad-beats-empty {
+  text-align: center;
+  color: #706b60;
+  font-size: 0.95rem;
+  padding: 3rem 1rem;
+  margin: 0;
+}
+
+.bad-beats-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.bad-beat-card {
+  position: relative;
+  border-radius: 1rem;
+  border: 1px solid rgba(212, 168, 67, 0.18);
+  background: linear-gradient(165deg, rgba(22, 18, 16, 0.95), rgba(12, 10, 8, 0.98));
+  padding: 1.5rem 2.75rem 1.75rem 1.5rem;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+}
+
+.bad-beat-card .bad-beat-delete.board-delete {
+  position: absolute;
+  top: 0.65rem;
+  right: 0.55rem;
+  z-index: 20;
+  opacity: 1;
+  color: #c9beb0;
+  background: rgba(0, 0, 0, 0.45);
+  border: 1px solid rgba(212, 168, 67, 0.25);
+}
+
+.bad-beat-card .bad-beat-delete.board-delete:hover {
+  color: #fff;
+  background: rgba(192, 57, 43, 0.35);
+  border-color: rgba(192, 57, 43, 0.45);
+}
+
+.bad-beat-date {
+  margin: 0 0 1.25rem;
+  font-size: 0.78rem;
+  color: #706b60;
+  letter-spacing: 0.04em;
+}
+
+.bad-beat-block + .bad-beat-block {
+  margin-top: 1rem;
+}
+
+.bad-beat-label {
+  display: block;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--gold);
+  margin-bottom: 0.35rem;
+}
+
+.bad-beat-text {
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: #e8e4dc;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.bad-beats-modal {
+  max-width: 440px;
+}
+
+.bad-beats-modal-hint {
+  margin: -0.35rem 0 0.25rem;
+  font-size: 0.88rem;
+  line-height: 1.45;
+  color: #9e9a92;
+}
+
+.bb-modal-date-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.55rem;
+  margin: 0.35rem 0 0.75rem;
+}
+
+.bb-modal-date-row .modal-label {
+  flex: 1 1 11rem;
+  min-width: 0;
+}
+
+.bb-modal-date-row input[type="date"] {
+  color-scheme: dark;
+}
+
+.bad-beats-textarea {
+  min-height: 4.5rem;
+  resize: vertical;
+  font-family: inherit;
+  line-height: 1.45;
+}
+
+.bad-beats-form-error {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #e87373;
+}
+
+.bad-beats-modal-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  justify-content: flex-end;
+  margin-top: 0.25rem;
+}
+
+.bad-beats-modal-wide {
+  max-width: min(920px, 96vw);
+  max-height: 92vh;
+  overflow-y: auto;
+}
+
+.bad-beat-legacy-tag {
+  margin: 0 0 0.75rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #706b60;
+}
+
+/* Bad beat poker table + cards */
+.bb-poker-table .bb-seat {
+  transform: translate(-50%, -50%);
+}
+
+.bb-poker-table--readonly {
+  margin-top: 0.35rem;
+  margin-bottom: 0.5rem;
+  overflow: visible;
+  padding-top: 1.35rem;
+}
+
+.bb-poker-table--readonly .bb-felt {
+  inset: 10%;
+}
+
+.bb-poker-table--readonly .bb-runout--readonly {
+  max-width: 100%;
+  gap: 0.22rem;
+}
+
+.bb-poker-table--readonly .bb-board-static {
+  width: 3.35rem;
+  height: 4.5rem;
+  flex-shrink: 0;
+  border-radius: 0.38rem;
+}
+
+.bb-poker-table--readonly .bb-board-static .bb-card--sm {
+  min-width: 2.62rem;
+  height: 3.92rem;
+  font-size: 0.92rem;
+  padding: 0.18rem 0.16rem;
+}
+
+.bb-poker-table--readonly .bb-board-static .bb-card-suit {
+  font-size: 1.12em;
+}
+
+.bb-poker-table--readonly.bb-poker-table--compact .bb-board-static {
+  width: 3.25rem;
+  height: 4.38rem;
+}
+
+.bb-poker-table--readonly.bb-poker-table--compact .bb-board-static .bb-card--sm {
+  min-width: 2.55rem;
+  height: 3.78rem;
+  font-size: 0.88rem;
+  padding: 0.16rem 0.14rem;
+}
+
+.bb-poker-table--readonly.bb-poker-table--compact .bb-runout--readonly {
+  max-width: 100%;
+  gap: 0.18rem;
+}
+
+/* Read-only seats: no panel box; fanned hole cards */
+.bb-poker-table--readonly .bb-ro-seat.seat-occupied {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  min-width: unset !important;
+  min-height: unset !important;
+  padding: 0 0.15rem;
+}
+
+.bb-poker-table--readonly.bb-poker-table--compact .bb-ro-seat.seat-occupied {
+  padding: 0;
+  min-width: unset !important;
+  min-height: unset !important;
+}
+
+.bb-seat-inner--plain {
+  gap: 0.5rem;
+}
+
+.bb-seat-inner--plain .bb-seat-name {
+  text-shadow: 0 1px 10px rgba(0, 0, 0, 0.85);
+  letter-spacing: 0.02em;
+}
+
+.bb-seat-hole--fan {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  min-width: 7.75rem;
+  min-height: 4.15rem;
+  padding: 0 0.5rem 0.15rem;
+}
+
+.bb-hole-card {
+  display: inline-flex;
+  line-height: 0;
+}
+
+/* Slight fan with horizontal spread so both hole cards stay visible */
+.bb-hole-card--left {
+  transform: rotate(-9deg) translate(-0.55rem, 0.08rem);
+  z-index: 2;
+}
+
+.bb-hole-card--right {
+  transform: rotate(9deg) translate(0.55rem, 0.08rem);
+  z-index: 1;
+  margin-left: 0.35rem;
+}
+
+.bb-poker-table--readonly .bb-seat-hole--fan .bb-card--sm {
+  min-width: 2.48rem;
+  height: 3.52rem;
+  font-size: 0.85rem;
+  padding: 0.16rem 0.14rem;
+}
+
+.bb-poker-table--readonly .bb-seat-hole--fan .bb-card-suit {
+  font-size: 1.05em;
+}
+
+.bb-poker-table--readonly.bb-poker-table--compact .bb-seat-hole--fan {
+  min-width: 7.35rem;
+  min-height: 3.95rem;
+}
+
+.bb-poker-table--readonly.bb-poker-table--compact .bb-seat-hole--fan .bb-card--sm {
+  min-width: 2.38rem;
+  height: 3.38rem;
+  font-size: 0.8rem;
+  padding: 0.14rem 0.12rem;
+}
+
+.bb-poker-table--readonly.bb-poker-table--compact .bb-hole-card--left {
+  transform: rotate(-9deg) translate(-0.48rem, 0.06rem);
+}
+
+.bb-poker-table--readonly.bb-poker-table--compact .bb-hole-card--right {
+  transform: rotate(9deg) translate(0.48rem, 0.06rem);
+  margin-left: 0.3rem;
+}
+
+.bb-ro-seat {
+  z-index: 2;
+  width: auto;
+  min-width: 5.5rem;
+  height: auto;
+  min-height: 5rem;
+  border-radius: 0.6rem;
+  padding: 0.55rem 0.55rem 0.65rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.bb-ro-seat .bb-seat-inner {
+  gap: 0.35rem;
+}
+
+.bb-ro-seat .bb-seat-name {
+  font-size: 0.72rem;
+  max-width: 8.5rem;
+}
+
+.bb-ro-seat .bb-seat-hole {
+  gap: 0.22rem;
+}
+
+.bb-poker-table--compact .bb-ro-seat {
+  min-width: 4.85rem;
+  min-height: 4.5rem;
+  padding: 0.4rem 0.45rem 0.5rem;
+}
+
+.bb-poker-table .bb-seat--empty {
+  padding: 0;
+  border: none;
+  background: transparent;
+}
+
+.bb-poker-table .bb-seat--filled {
+  width: auto;
+  min-width: 5.25rem;
+  height: auto;
+  min-height: 4.75rem;
+  border-radius: 0.55rem;
+  padding: 0.35rem 0.45rem 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.bb-poker-table--compact .bb-seat--filled {
+  min-width: 4.5rem;
+  min-height: 4.25rem;
+  padding: 0.25rem 0.35rem 0.4rem;
+}
+
+.bb-seat-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+  max-width: 7rem;
+}
+
+.bb-seat-name {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #faf6ee;
+  text-align: center;
+  line-height: 1.15;
+  word-break: break-word;
+}
+
+.bb-seat-hole {
+  display: flex;
+  gap: 0.15rem;
+  align-items: center;
+  justify-content: center;
+}
+
+.bb-seat-remove {
+  position: absolute;
+  top: 0.1rem;
+  right: 0.1rem;
+  z-index: 3;
+  transform: none;
+}
+
+.bb-seat-add {
+  width: 100%;
+  height: 100%;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.1rem;
+  color: #706b60;
+  font-family: inherit;
+  padding: 0;
+}
+
+.bb-seat-add:disabled {
+  cursor: default;
+  opacity: 0.35;
+}
+
+.bb-seat-add-plus {
+  font-size: 1.25rem;
+  font-weight: 300;
+  color: var(--gold-dim);
+  line-height: 1;
+}
+
+.bb-seat-add-lbl {
+  font-size: 0.55rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.bb-felt .felt-text {
+  display: none;
+}
+
+.bb-runout {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.35rem;
+  z-index: 2;
+  max-width: 92%;
+}
+
+.bb-runout--readonly {
+  gap: 0.28rem;
+  max-width: 92%;
+  flex-wrap: nowrap;
+  justify-content: center;
+  align-items: center;
+}
+
+.bb-board-static {
+  width: 2.55rem;
+  height: 3.5rem;
+  border-radius: 0.35rem;
+  border: 1px solid rgba(0, 0, 0, 0.28);
+  background: linear-gradient(180deg, #fdfcfa, #e8e4dc);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.22);
+}
+
+.bb-board-static--empty {
+  font-size: 0.85rem;
+  color: #888;
+  font-weight: 600;
+}
+
+.bb-poker-table--compact .bb-board-static {
+  width: 2.15rem;
+  height: 2.95rem;
+}
+
+/* Read-only rules above override compact static sizes when both classes apply */
+
+.bb-board-slot {
+  width: 2.5rem;
+  height: 3.45rem;
+  border-radius: 0.35rem;
+  border: 1px solid rgba(0, 0, 0, 0.35);
+  background: linear-gradient(180deg, #fdfcfa, #e8e4dc);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-family: inherit;
+  padding: 0;
+  color: #5c584f;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+}
+
+.bb-board-slot:disabled {
+  cursor: default;
+}
+
+.bb-board-slot--empty span {
+  font-size: 1.1rem;
+  font-weight: 300;
+  opacity: 0.5;
+}
+
+.bb-board-slot--inline {
+  width: 2.75rem;
+  height: 3.55rem;
+}
+
+.bb-card {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.3rem;
+  border: 1px solid rgba(0, 0, 0, 0.28);
+  background: linear-gradient(180deg, #fdfcfa, #ebe7df);
+  line-height: 1;
+  box-sizing: border-box;
+  font-weight: 800;
+}
+
+.bb-card--sm {
+  min-width: 1.65rem;
+  height: 2.35rem;
+  font-size: 0.58rem;
+  padding: 0.1rem 0.12rem;
+}
+
+.bb-card--md {
+  min-width: 2rem;
+  height: 2.85rem;
+  font-size: 0.72rem;
+  padding: 0.12rem 0.15rem;
+}
+
+.bb-card--lg {
+  min-width: 2.35rem;
+  height: 3.25rem;
+  font-size: 0.85rem;
+  padding: 0.15rem 0.18rem;
+}
+
+.bb-card--empty {
+  background: rgba(255, 255, 255, 0.06);
+  border-style: dashed;
+  color: #888;
+}
+
+.bb-card--red {
+  color: #c0392b;
+}
+
+.bb-card--blk {
+  color: #1a1a1a;
+}
+
+.bb-card-rank {
+  display: block;
+}
+
+.bb-card-suit {
+  display: block;
+  font-size: 1.05em;
+  margin-top: 0.08em;
+}
+
+.bb-picker-backdrop {
+  z-index: 250;
+}
+
+.bb-picker-card {
+  max-width: min(520px, 94vw);
+  max-height: 85vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.bb-picker-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.bb-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(13, minmax(0, 1fr));
+  gap: 0.2rem;
+  overflow-y: auto;
+  padding: 0.15rem;
+  max-height: min(60vh, 420px);
+}
+
+@media (max-width: 520px) {
+  .bb-picker-grid {
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+  }
+}
+
+.bb-picker-cell {
+  padding: 0.08rem;
+  border: none;
+  border-radius: 0.25rem;
+  background: rgba(255, 255, 255, 0.04);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.bb-picker-cell:hover:not(:disabled) {
+  background: rgba(212, 168, 67, 0.12);
+}
+
+.bb-picker-cell--used {
+  opacity: 0.22;
+  cursor: not-allowed;
+}
+
+.bb-seat-form {
+  margin-top: 0.5rem;
+  padding: 1rem 1.1rem;
+  border-radius: 0.75rem;
+  border: 1px solid rgba(212, 168, 67, 0.2);
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.bb-seat-form-title {
+  margin: 0 0 0.75rem;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #faf6ee;
+}
+
+.bb-seat-form-holes {
+  margin-top: 0.5rem;
+}
+
+.bb-seat-form-hole-row {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.35rem;
+}
+
+.bb-seat-form-actions {
+  display: flex;
+  gap: 0.65rem;
+  justify-content: flex-end;
+  margin-top: 1rem;
+  flex-wrap: wrap;
+}
+
+.bb-poker-table--compact .bb-board-slot {
+  width: 2.1rem;
+  height: 2.95rem;
+}
+
+.bb-table-wrap--compact .poker-table {
+  max-width: 100%;
+}
+
+.bad-beat-card .poker-table-wrap {
+  margin-top: 0.75rem;
+  padding-top: 1.35rem;
+}
+
+.bad-beats-modal-wide .poker-table-wrap {
+  margin-top: 0.85rem;
+  margin-bottom: 0.65rem;
+}
+
+.bad-beats-modal-wide .bad-beats-modal-hint {
+  margin-bottom: 0.65rem;
+}
+
+.bad-beats-modal-wide .bb-runout {
+  gap: 0.45rem;
+}
+
 .tables-suits {
   position: fixed;
   inset: 0;

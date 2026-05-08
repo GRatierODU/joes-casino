@@ -289,6 +289,9 @@ export default function Home() {
             <Link href="/stats" className="home-tables-link">
               Player Stats &rarr;
             </Link>
+            <Link href="/bad-beats" className="home-tables-link">
+              Bad Beats Hall of Fame &rarr;
+            </Link>
           </div>
           <div className="hero-scroll-cue">
             <span />

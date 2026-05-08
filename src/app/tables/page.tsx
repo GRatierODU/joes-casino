@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, type FormEvent } from "react";
 import Link from "next/link";
 import type { PublicPlayer, TableSeat } from "@/lib/players";
 import { seatDisplayLabel, seatPicture } from "@/lib/players";
@@ -29,7 +29,16 @@ type ModalState =
   | { kind: "move"; table: number; seat: number; name: string }
   | null;
 
+const TABLES_GATE_STORAGE = "joes-tables-gate";
+/** Temporary gate password (client-side only). */
+const TABLES_GATE_PASSWORD = "joescasino";
+
 export default function TablesPage() {
+  const [gateReady, setGateReady] = useState(false);
+  const [tablesUnlocked, setTablesUnlocked] = useState(false);
+  const [gatePw, setGatePw] = useState("");
+  const [gateError, setGateError] = useState("");
+
   const [state, setState] = useState<TablesState>(EMPTY);
   const [modal, setModal] = useState<ModalState>(null);
   const [formPlayerId, setFormPlayerId] = useState("");
@@ -67,11 +76,21 @@ export default function TablesPage() {
   const [quickAddSubmitting, setQuickAddSubmitting] = useState(false);
 
   useEffect(() => {
+    try {
+      setTablesUnlocked(sessionStorage.getItem(TABLES_GATE_STORAGE) === "1");
+    } catch {
+      setTablesUnlocked(false);
+    }
+    setGateReady(true);
+  }, []);
+
+  useEffect(() => {
+    if (!tablesUnlocked) return;
     fetch("/api/players")
       .then((r) => r.json())
       .then((d) => setPlayers(d.players ?? []))
       .catch(() => {});
-  }, []);
+  }, [tablesUnlocked]);
 
   const fetchState = useCallback(() => {
     fetch("/api/tables")
@@ -81,10 +100,11 @@ export default function TablesPage() {
   }, []);
 
   useEffect(() => {
+    if (!tablesUnlocked) return;
     fetchState();
     const id = setInterval(fetchState, 5000);
     return () => clearInterval(id);
-  }, [fetchState]);
+  }, [fetchState, tablesUnlocked]);
 
   const isOpen = state.tables.some((t) => t.some((s) => s !== null));
   const occupiedSeats = state.tables.flat().filter((s): s is Exclude<Seat, null> => s !== null);
@@ -241,8 +261,32 @@ export default function TablesPage() {
     setQuickAddSubmitting(false);
   }, [quickAdd]);
 
+  const handleGateSubmit = (e: FormEvent) => {
+    e.preventDefault();
+    const v = gatePw.trim();
+    if (v === TABLES_GATE_PASSWORD) {
+      try {
+        sessionStorage.setItem(TABLES_GATE_STORAGE, "1");
+      } catch {
+        /* ignore private mode / quota */
+      }
+      setTablesUnlocked(true);
+      setGateError("");
+      setGatePw("");
+    } else {
+      setGateError("Wrong password.");
+    }
+  };
+
+  const showGateOverlay = !gateReady || !tablesUnlocked;
+  const pageInteractive = gateReady && tablesUnlocked;
+
   return (
-    <div className="tables-page">
+    <>
+    <div
+      className={`tables-page${!pageInteractive ? " tables-page--behind-gate" : ""}`}
+      aria-hidden={!pageInteractive}
+    >
       <div className="tables-suits" aria-hidden="true">
         <span className="suit suit-1">&spades;</span>
         <span className="suit suit-2">&hearts;</span>
@@ -260,6 +304,9 @@ export default function TablesPage() {
         </Link>
         <Link href="/stats" className="tables-nav-link">
           Stats
+        </Link>
+        <Link href="/bad-beats" className="tables-nav-link">
+          Bad Beats
         </Link>
       </nav>
 
@@ -715,8 +762,8 @@ export default function TablesPage() {
                           className="session-row session-row-clickable"
                           onClick={() => setAddToBoard({ session: s, date: selectedDate!, index: origIdx })}
                         >
-                          <span className={`session-col-paid ${(s.paid || (s.cashout - s.buyin) < 0) ? "session-paid" : ""}`}>
-                            {(s.paid || (s.cashout - s.buyin) < 0) ? "\uD83D\uDCB0" : ""}
+                          <span className={`session-col-paid ${(s.paid || s.cashout === 0) ? "session-paid" : ""}`}>
+                            {(s.paid || s.cashout === 0) ? "\uD83D\uDCB0" : ""}
                           </span>
                           <span className="session-col-name">{s.name}</span>
                           <span className="session-col">${s.buyin.toLocaleString("en-US")}</span>
@@ -1140,5 +1187,43 @@ export default function TablesPage() {
         </div>
       )}
     </div>
+
+    {showGateOverlay && (
+      <div className="tables-gate-overlay" role="presentation">
+        {!gateReady ? (
+          <p className="tables-gate-loading">Loading…</p>
+        ) : (
+          <form
+            className="modal-card tables-gate-card"
+            onSubmit={handleGateSubmit}
+            autoComplete="off"
+          >
+            <h2 className="modal-title">Live tables</h2>
+            <p className="tables-gate-hint">Enter the password to view and manage tables.</p>
+            <label className="modal-label">
+              Password
+              <input
+                className="modal-input"
+                type="password"
+                name="tables-gate-password"
+                autoComplete="current-password"
+                autoFocus
+                value={gatePw}
+                onChange={(e) => {
+                  setGatePw(e.target.value);
+                  setGateError("");
+                }}
+                placeholder="Password"
+              />
+            </label>
+            {gateError ? <p className="tables-gate-error">{gateError}</p> : null}
+            <button type="submit" className="modal-btn modal-btn-submit">
+              Continue
+            </button>
+          </form>
+        )}
+      </div>
+    )}
+    </>
   );
 }

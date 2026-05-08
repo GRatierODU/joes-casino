@@ -11,10 +11,19 @@ export type Player = {
 export type PublicPlayer = Player & { displayName: string };
 
 /** Public table seat (new format) */
-export type SeatV2 = { playerId: string; buyin: number };
+export type SeatV2 = {
+  playerId: string;
+  buyin: number;
+  /** Casino calendar date (YYYY-MM-DD) when they sat; used to bucket session history on cash-out. */
+  sessionDay?: string;
+};
 
 /** Legacy seat from before player accounts */
-export type SeatLegacy = { name: string; buyin: number };
+export type SeatLegacy = {
+  name: string;
+  buyin: number;
+  sessionDay?: string;
+};
 
 export type TableSeat = SeatV2 | SeatLegacy | null;
 

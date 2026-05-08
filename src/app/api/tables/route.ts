@@ -1,15 +1,11 @@
 import { Redis } from "@upstash/redis";
 import { NextResponse } from "next/server";
-import { playerDisplayName } from "@/lib/players";
+import { playerDisplayName, type SeatLegacy, type TableSeat } from "@/lib/players";
 import { readPlayers } from "@/lib/playerStorage";
 import { appendSessionForDay } from "@/lib/sessionAppend";
 import { sessionCalendarDateISO } from "@/lib/sessionDate";
 
-type SeatV2 = { playerId: string; buyin: number };
-type SeatLegacy = { name: string; buyin: number };
-type Seat = SeatV2 | SeatLegacy | null;
-
-type TablesState = { tables: [Seat[], Seat[]] };
+type TablesState = { tables: [TableSeat[], TableSeat[]] };
 type SessionRecord = {
   name: string;
   buyin: number;
@@ -92,7 +88,11 @@ export async function POST(request: Request) {
     if (!players.some((p) => p.id === playerId)) {
       return NextResponse.json({ error: "Unknown player" }, { status: 400 });
     }
-    state.tables[table][seat] = { playerId, buyin };
+    state.tables[table][seat] = {
+      playerId,
+      buyin,
+      sessionDay: sessionCalendarDateISO(),
+    };
   } else if (action === "update") {
     const { buyin } = body as { buyin: number };
     if (typeof buyin !== "number" || buyin <= 0) {
@@ -108,7 +108,10 @@ export async function POST(request: Request) {
     if (current) {
       const { cashout } = body as { cashout: number };
       const co = typeof cashout === "number" && cashout >= 0 ? cashout : 0;
-      const casinoDay = sessionCalendarDateISO();
+      const casinoDay =
+        typeof current.sessionDay === "string" && current.sessionDay.trim()
+          ? current.sessionDay.trim()
+          : sessionCalendarDateISO();
       const dateKey = `joes-sessions:${casinoDay}`;
 
       let displayName: string;
