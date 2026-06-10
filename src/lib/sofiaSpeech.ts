@@ -1,4 +1,4 @@
-import type { ChatPersonaId } from "./chatPersonas";
+import { CHAT_PERSONAS, type ChatPersonaId } from "./chatPersonas";
 
 export type PlayPersonaSpeechOptions = {
   personaId?: ChatPersonaId | null;
@@ -27,14 +27,26 @@ function loadVoices(): Promise<SpeechSynthesisVoice[]> {
   return voicesReady;
 }
 
-function pickFemaleVoice(voices: SpeechSynthesisVoice[]): SpeechSynthesisVoice | undefined {
+function pickPersonaVoice(
+  voices: SpeechSynthesisVoice[],
+  personaId?: ChatPersonaId | null
+): SpeechSynthesisVoice | undefined {
   const en = voices.filter((v) => v.lang.toLowerCase().startsWith("en"));
+  const persona = personaId ? CHAT_PERSONAS[personaId] : null;
+  if (persona?.browserVoiceHint) {
+    const hint = new RegExp(persona.browserVoiceHint, "i");
+    const match = en.find((v) => hint.test(v.name));
+    if (match) return match;
+  }
   const prefer =
     /zira|samantha|victoria|jenny|aria|susan|karen|moira|tessa|female|natasha/i;
   return en.find((v) => prefer.test(v.name)) ?? en[0] ?? voices[0];
 }
 
-function speakWithBrowser(text: string, opts: PlayPersonaSpeechOptions): Promise<() => void> {
+function speakWithBrowser(
+  text: string,
+  opts: PlayPersonaSpeechOptions
+): Promise<() => void> {
   return loadVoices().then((voices) => {
     if (!window.speechSynthesis) {
       opts.onEnd?.();
@@ -43,7 +55,7 @@ function speakWithBrowser(text: string, opts: PlayPersonaSpeechOptions): Promise
 
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(text);
-    const voice = pickFemaleVoice(voices);
+    const voice = pickPersonaVoice(voices, opts.personaId);
     if (voice) utterance.voice = voice;
     utterance.rate = 0.96;
     utterance.pitch = 1.04;
@@ -69,12 +81,16 @@ function speakWithBrowser(text: string, opts: PlayPersonaSpeechOptions): Promise
   });
 }
 
-function playWavBase64(base64: string, opts: PlayPersonaSpeechOptions): Promise<() => void> {
+function playAudioBase64(
+  base64: string,
+  mime: string,
+  opts: PlayPersonaSpeechOptions
+): Promise<() => void> {
   return new Promise((resolve, reject) => {
     const binary = atob(base64);
     const bytes = new Uint8Array(binary.length);
     for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-    const blob = new Blob([bytes], { type: "audio/wav" });
+    const blob = new Blob([bytes], { type: mime });
     const url = URL.createObjectURL(blob);
     const audio = new Audio(url);
     let ended = false;
@@ -103,10 +119,15 @@ function playWavBase64(base64: string, opts: PlayPersonaSpeechOptions): Promise<
   });
 }
 
-/** Play pre-generated WAV (from chat API) or fall back to browser TTS. */
+/** Play pre-generated audio (from chat API) or fall back to browser TTS. */
 export async function playPersonaSpeech(
   text: string,
-  opts: PlayPersonaSpeechOptions & { audioWavBase64?: string | null } = {}
+  opts: PlayPersonaSpeechOptions & {
+    audioBase64?: string | null;
+    audioMime?: string | null;
+    /** @deprecated use audioBase64 */
+    audioWavBase64?: string | null;
+  } = {}
 ): Promise<() => void> {
   const trimmed = text.trim();
   if (!trimmed) {
@@ -116,9 +137,12 @@ export async function playPersonaSpeech(
 
   stopPersonaSpeech();
 
-  if (opts.audioWavBase64) {
+  const base64 = opts.audioBase64 ?? opts.audioWavBase64;
+  const mime = opts.audioMime ?? (opts.audioWavBase64 ? "audio/wav" : null);
+
+  if (base64 && mime) {
     try {
-      return await playWavBase64(opts.audioWavBase64, opts);
+      return await playAudioBase64(base64, mime, opts);
     } catch {
       /* fall through to browser */
     }

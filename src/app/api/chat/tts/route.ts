@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getPersona, type ChatPersonaId } from "@/lib/chatPersonas";
-import { geminiApiKey, synthesizePersonaSpeech } from "@/lib/geminiTts";
+import { synthesizeForPersona } from "@/lib/personaTts";
 
 export const runtime = "nodejs";
 
@@ -9,8 +9,6 @@ const bodySchema = z.object({
   text: z.string().min(1).max(1200),
   personaId: z.enum(["easy", "average", "hard"]).optional(),
 });
-
-const DEFAULT_TTS_VOICE = process.env.GEMINI_TTS_VOICE?.trim() || "Aoede";
 
 export async function POST(request: Request) {
   let text: string;
@@ -24,27 +22,21 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid request." }, { status: 400 });
   }
 
-  const persona = personaId ? getPersona(personaId) : null;
-  const apiKey = geminiApiKey();
-  if (!apiKey) {
-    return NextResponse.json({ error: "Gemini API key not configured." }, { status: 503 });
+  const persona = personaId ? getPersona(personaId) : getPersona("easy");
+  if (!persona) {
+    return NextResponse.json({ error: "Unknown persona." }, { status: 400 });
   }
 
   try {
-    const wavBase64 = await synthesizePersonaSpeech(
-      text,
-      persona?.name ?? "Sofia",
-      persona?.ttsVoice ?? DEFAULT_TTS_VOICE,
-      apiKey
-    );
-    if (!wavBase64) {
+    const audio = await synthesizeForPersona(persona, text);
+    if (!audio) {
       return NextResponse.json({ error: "TTS unavailable." }, { status: 502 });
     }
 
-    const raw = Buffer.from(wavBase64, "base64");
+    const raw = Buffer.from(audio.audioBase64, "base64");
     return new NextResponse(new Uint8Array(raw), {
       headers: {
-        "Content-Type": "audio/wav",
+        "Content-Type": audio.audioMime,
         "Cache-Control": "no-store",
       },
     });

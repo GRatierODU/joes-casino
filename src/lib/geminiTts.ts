@@ -16,7 +16,7 @@ export function geminiApiKey(): string | null {
 }
 
 /** Returns base64-encoded WAV audio, or null if synthesis fails. */
-export async function synthesizePersonaSpeech(
+export async function synthesizeGeminiSpeech(
   text: string,
   speakerName: string,
   voiceName: string,

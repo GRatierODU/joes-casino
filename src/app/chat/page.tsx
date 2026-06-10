@@ -26,7 +26,8 @@ type ChatMessage = { role: "user" | "assistant"; content: string };
 
 type ChatApiResponse = {
   reply?: string;
-  audioWavBase64?: string | null;
+  audioBase64?: string | null;
+  audioMime?: string | null;
   interest?: number;
   mood?: ChatMood;
   won?: boolean;
@@ -71,26 +72,31 @@ export default function ChatPage() {
     };
   }, []);
 
-  const applyAssistantTurn = useCallback(async (data: ChatApiResponse, append: boolean) => {
-    if (!data.reply) return;
+  const applyAssistantTurn = useCallback(
+    async (data: ChatApiResponse, id: ChatPersonaId, append: boolean) => {
+      if (!data.reply) return;
 
-    cancelSpeechRef.current?.();
-    if (append) {
-      setMessages((prev) => [...prev, { role: "assistant", content: data.reply! }]);
-    } else {
-      setMessages([{ role: "assistant", content: data.reply }]);
-    }
-    if (typeof data.interest === "number") setInterest(data.interest);
-    if (data.mood) setMood(data.mood);
-    if (data.won) setWon(true);
-    if (data.lost) setLost(true);
+      cancelSpeechRef.current?.();
+      if (append) {
+        setMessages((prev) => [...prev, { role: "assistant", content: data.reply! }]);
+      } else {
+        setMessages([{ role: "assistant", content: data.reply }]);
+      }
+      if (typeof data.interest === "number") setInterest(data.interest);
+      if (data.mood) setMood(data.mood);
+      if (data.won) setWon(true);
+      if (data.lost) setLost(true);
 
-    cancelSpeechRef.current = await playPersonaSpeech(data.reply, {
-      audioWavBase64: data.audioWavBase64,
-      onStart: () => setSpeaking(true),
-      onEnd: () => setSpeaking(false),
-    });
-  }, []);
+      cancelSpeechRef.current = await playPersonaSpeech(data.reply, {
+        audioBase64: data.audioBase64,
+        audioMime: data.audioMime,
+        personaId: id,
+        onStart: () => setSpeaking(true),
+        onEnd: () => setSpeaking(false),
+      });
+    },
+    []
+  );
 
   useEffect(() => {
     const el = threadRef.current;
@@ -163,7 +169,7 @@ export default function ChatPage() {
         return;
       }
 
-      await applyAssistantTurn(data, false);
+      await applyAssistantTurn(data, id, false);
       setLoading(false);
       setBootstrapping(false);
     },
@@ -191,7 +197,7 @@ export default function ChatPage() {
       return;
     }
 
-    await applyAssistantTurn(data, true);
+    await applyAssistantTurn(data, personaId, true);
     setLoading(false);
   };
 
@@ -200,6 +206,21 @@ export default function ChatPage() {
       e.preventDefault();
       void sendUserMessage();
     }
+  };
+
+  const backToPicker = () => {
+    if (loading || bootstrapping) return;
+    cancelSpeechRef.current?.();
+    stopPersonaSpeech();
+    setSpeaking(false);
+    setPersonaId(null);
+    setMessages([]);
+    setInterest(0);
+    setMood("curious");
+    setWon(false);
+    setLost(false);
+    setError("");
+    setInput("");
   };
 
   const showGateOverlay = !gateReady || !chatUnlocked;
@@ -233,13 +254,25 @@ export default function ChatPage() {
 
         <header className="chat-header">
           <p className="chat-eyebrow">Joe&apos;s Casino · VIP Lounge</p>
-          <h1 className="chat-title">{persona?.name ?? "VIP Lounge"}</h1>
+          <div className="chat-title-row">
+            {personaId ? (
+              <button
+                type="button"
+                className="chat-back-btn"
+                onClick={backToPicker}
+                disabled={loading || bootstrapping}
+                aria-label="Back to character list"
+              >
+                &larr;
+              </button>
+            ) : (
+              <span className="chat-back-spacer" aria-hidden="true" />
+            )}
+            <h1 className="chat-title">{persona?.name ?? "VIP Lounge"}</h1>
+            <span className="chat-back-spacer" aria-hidden="true" />
+          </div>
           {!personaId ? (
             <p className="chat-sub">Pick who you want to take home tonight.</p>
-          ) : persona ? (
-            <p className="chat-sub">
-              {persona.label} · {persona.tagline}
-            </p>
           ) : null}
         </header>
 

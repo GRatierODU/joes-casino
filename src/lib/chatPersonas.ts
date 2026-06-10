@@ -1,3 +1,5 @@
+import type { OpenAiTtsVoice } from "@/lib/openaiTts";
+
 export type ChatPersonaId = "easy" | "average" | "hard";
 
 export type ChatMood = "cold" | "curious" | "warm" | "flirty" | "smitten";
@@ -8,8 +10,12 @@ export type ChatPersona = {
   tagline: string;
   name: string;
   portrait: string;
-  /** Gemini prebuilt TTS voice name */
-  ttsVoice: string;
+  /** OpenAI TTS voice (primary). */
+  openaiVoice: OpenAiTtsVoice;
+  /** Gemini TTS fallback voice. */
+  geminiVoice: string;
+  /** Hint for browser speechSynthesis fallback (substring match on voice name). */
+  browserVoiceHint: string;
   startInterest: number;
   winThreshold: number;
   systemPrompt: string;
@@ -34,7 +40,9 @@ export const CHAT_PERSONAS: Record<ChatPersonaId, ChatPersona> = {
     tagline: "Open-minded and quick to say yes",
     name: "Sofia",
     portrait: "/chat/sofia-portrait.jpg",
-    ttsVoice: "Aoede",
+    openaiVoice: "shimmer",
+    geminiVoice: "Aoede",
+    browserVoiceHint: "samantha|zira|paulina|elvira|lucia",
     startInterest: 55,
     winThreshold: 78,
     systemPrompt: `${baseRules("Sofia")}
@@ -47,7 +55,9 @@ Persona (Easy): Sofia is warm, bubbly, and openly flirty. You laugh easily, touc
     tagline: "You have to build real tension first",
     name: "Maya",
     portrait: "/chat/maya-portrait.jpg",
-    ttsVoice: "Kore",
+    openaiVoice: "coral",
+    geminiVoice: "Kore",
+    browserVoiceHint: "jenny|aria|emma|michelle|sara",
     startInterest: 38,
     winThreshold: 88,
     systemPrompt: `${baseRules("Maya")}
@@ -60,7 +70,9 @@ Persona (Average): Maya is charming but measured. She likes witty banter and rea
     tagline: "Rarely takes someone home on the first night",
     name: "Victoria",
     portrait: "/chat/victoria-portrait.jpg",
-    ttsVoice: "Leda",
+    openaiVoice: "sage",
+    geminiVoice: "Leda",
+    browserVoiceHint: "victoria|sonia|serena|hazel|ava",
     startInterest: 18,
     winThreshold: 94,
     systemPrompt: `${baseRules("Victoria")}
