@@ -2888,9 +2888,10 @@ body {
 .chat-persona-card {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  align-items: center;
+  text-align: center;
   gap: 0.35rem;
-  padding: 1rem 1.1rem;
+  padding: 0.85rem 0.9rem 1rem;
   border-radius: 12px;
   border: 1px solid rgba(212, 175, 95, 0.22);
   background: rgba(20, 18, 24, 0.85);
@@ -2911,10 +2912,33 @@ body {
   cursor: wait;
 }
 
+.chat-persona-thumb {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  max-height: 200px;
+  border-radius: 10px;
+  overflow: hidden;
+  margin-bottom: 0.25rem;
+  border: 1px solid rgba(212, 175, 95, 0.25);
+}
+
+.chat-persona-thumb-img {
+  object-fit: cover;
+  object-position: center 15%;
+}
+
 .chat-persona-label {
-  font-size: 1.05rem;
+  font-size: 1.1rem;
   font-weight: 600;
   color: #f0e8dc;
+}
+
+.chat-persona-diff {
+  font-size: 0.78rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--gold);
 }
 
 .chat-persona-tag {
@@ -3017,6 +3041,28 @@ body {
   to {
     transform: scale(1.035);
   }
+}
+
+.chat-voice-toggle {
+  align-self: center;
+  padding: 0.4rem 0.85rem;
+  border-radius: 999px;
+  border: 1px solid rgba(212, 175, 95, 0.3);
+  background: rgba(0, 0, 0, 0.2);
+  color: #9e9a92;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+
+.chat-voice-toggle--on {
+  border-color: rgba(232, 160, 184, 0.55);
+  color: #f0d0dc;
+  background: rgba(139, 58, 98, 0.22);
+}
+
+.chat-voice-toggle:hover {
+  border-color: rgba(212, 175, 95, 0.5);
 }
 
 .chat-meter {

@@ -17,8 +17,10 @@ import {
   type ChatMood,
   type ChatPersonaId,
 } from "@/lib/chatPersonas";
+import { speakSofia, stopSofiaSpeech } from "@/lib/sofiaSpeech";
 
 const CHAT_GATE_STORAGE = "joes-chat-gate";
+const CHAT_VOICE_STORAGE = "joes-chat-voice";
 const CHAT_GATE_PASSWORD = "joescasino";
 
 type ChatMessage = { role: "user" | "assistant"; content: string };
@@ -49,16 +51,50 @@ export default function ChatPage() {
   const [speaking, setSpeaking] = useState(false);
   const [error, setError] = useState("");
   const [bootstrapping, setBootstrapping] = useState(false);
+  const [voiceOn, setVoiceOn] = useState(true);
 
   const threadRef = useRef<HTMLDivElement>(null);
+  const cancelSpeechRef = useRef<(() => void) | null>(null);
+  const voiceOnRef = useRef(true);
 
   useEffect(() => {
     try {
       setChatUnlocked(sessionStorage.getItem(CHAT_GATE_STORAGE) === "1");
+      const v = sessionStorage.getItem(CHAT_VOICE_STORAGE);
+      if (v === "0") {
+        setVoiceOn(false);
+        voiceOnRef.current = false;
+      }
     } catch {
       setChatUnlocked(false);
     }
     setGateReady(true);
+  }, []);
+
+  useEffect(() => {
+    voiceOnRef.current = voiceOn;
+    try {
+      sessionStorage.setItem(CHAT_VOICE_STORAGE, voiceOn ? "1" : "0");
+    } catch {
+      /* ignore */
+    }
+  }, [voiceOn]);
+
+  useEffect(() => {
+    return () => {
+      cancelSpeechRef.current?.();
+      stopSofiaSpeech();
+    };
+  }, []);
+
+  const playPersonaLine = useCallback(async (line: string, id: ChatPersonaId) => {
+    cancelSpeechRef.current?.();
+    cancelSpeechRef.current = await speakSofia(line, {
+      enabled: voiceOnRef.current,
+      personaId: id,
+      onStart: () => setSpeaking(true),
+      onEnd: () => setSpeaking(false),
+    });
   }, []);
 
   useEffect(() => {
@@ -118,7 +154,6 @@ export default function ChatPage() {
       setError("");
       setBootstrapping(true);
       setLoading(true);
-      setSpeaking(true);
 
       const data = await callChat({
         personaId: id,
@@ -129,7 +164,6 @@ export default function ChatPage() {
 
       setLoading(false);
       setBootstrapping(false);
-      setSpeaking(false);
 
       if (!data?.reply) return;
 
@@ -138,8 +172,9 @@ export default function ChatPage() {
       if (data.mood) setMood(data.mood);
       if (data.won) setWon(true);
       if (data.lost) setLost(true);
+      void playPersonaLine(data.reply, id);
     },
-    [callChat]
+    [callChat, playPersonaLine]
   );
 
   const sendUserMessage = async () => {
@@ -151,7 +186,6 @@ export default function ChatPage() {
     setInput("");
     setError("");
     setLoading(true);
-    setSpeaking(true);
 
     const data = await callChat({
       personaId,
@@ -160,7 +194,6 @@ export default function ChatPage() {
     });
 
     setLoading(false);
-    setSpeaking(false);
 
     if (!data?.reply) return;
 
@@ -169,6 +202,7 @@ export default function ChatPage() {
     if (data.mood) setMood(data.mood);
     if (data.won) setWon(true);
     if (data.lost) setLost(true);
+    void playPersonaLine(data.reply, personaId);
   };
 
   const onComposerKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
@@ -209,17 +243,19 @@ export default function ChatPage() {
 
         <header className="chat-header">
           <p className="chat-eyebrow">Joe&apos;s Casino · VIP Lounge</p>
-          <h1 className="chat-title">Sofia</h1>
+          <h1 className="chat-title">{persona?.name ?? "VIP Lounge"}</h1>
           {!personaId ? (
-            <p className="chat-sub">Talk her into coming home with you tonight.</p>
+            <p className="chat-sub">Pick who you want to take home tonight.</p>
           ) : persona ? (
-            <p className="chat-sub">{persona.label}</p>
+            <p className="chat-sub">
+              {persona.label} · {persona.tagline}
+            </p>
           ) : null}
         </header>
 
         {!personaId ? (
           <main className="chat-picker">
-            <p className="chat-picker-lead">Choose difficulty</p>
+            <p className="chat-picker-lead">Who are you talking to?</p>
             <div className="chat-persona-grid">
               {(Object.keys(CHAT_PERSONAS) as ChatPersonaId[]).map((id) => {
                 const p = CHAT_PERSONAS[id];
@@ -231,7 +267,17 @@ export default function ChatPage() {
                     disabled={bootstrapping}
                     onClick={() => void startPersona(id)}
                   >
-                    <span className="chat-persona-label">{p.label}</span>
+                    <span className="chat-persona-thumb">
+                      <Image
+                        src={p.portrait}
+                        alt={p.name}
+                        fill
+                        sizes="120px"
+                        className="chat-persona-thumb-img"
+                      />
+                    </span>
+                    <span className="chat-persona-label">{p.name}</span>
+                    <span className="chat-persona-diff">{p.label}</span>
                     <span className="chat-persona-tag">{p.tagline}</span>
                   </button>
                 );
@@ -246,8 +292,8 @@ export default function ChatPage() {
                   className={`chat-avatar-photo${speaking || loading ? " chat-avatar-photo--speaking" : ""} chat-avatar-photo--${mood}`}
                 >
                   <Image
-                    src="/chat/sofia-portrait.jpg"
-                    alt="Sofia in the VIP lounge"
+                    src={persona?.portrait ?? "/chat/sofia-portrait.jpg"}
+                    alt={`${persona?.name ?? "Sofia"} in the VIP lounge`}
                     fill
                     sizes="(max-width: 900px) 100vw, 340px"
                     className="chat-avatar-photo-img"
@@ -255,6 +301,21 @@ export default function ChatPage() {
                   />
                   <div className="chat-avatar-photo-vignette" aria-hidden="true" />
                 </div>
+                <button
+                  type="button"
+                  className={`chat-voice-toggle${voiceOn ? " chat-voice-toggle--on" : ""}`}
+                  onClick={() => {
+                    if (voiceOn) {
+                      cancelSpeechRef.current?.();
+                      stopSofiaSpeech();
+                      setSpeaking(false);
+                    }
+                    setVoiceOn((v) => !v);
+                  }}
+                  aria-pressed={voiceOn}
+                >
+                  {voiceOn ? "Voice on" : "Voice off"}
+                </button>
                 <div className="chat-meter">
                   <div className="chat-meter-head">
                     <span>Attraction</span>
