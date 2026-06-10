@@ -1,4 +1,4 @@
-import { createOpenAI } from "@ai-sdk/openai";
+import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { generateText, Output } from "ai";
 import { NextResponse } from "next/server";
 import { z } from "zod";
@@ -10,6 +10,13 @@ import {
 } from "@/lib/chatPersonas";
 
 export const runtime = "nodejs";
+
+const GEMINI_SAFETY_SETTINGS = [
+  { category: "HARM_CATEGORY_HARASSMENT" as const, threshold: "BLOCK_ONLY_HIGH" as const },
+  { category: "HARM_CATEGORY_HATE_SPEECH" as const, threshold: "BLOCK_ONLY_HIGH" as const },
+  { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT" as const, threshold: "BLOCK_ONLY_HIGH" as const },
+  { category: "HARM_CATEGORY_DANGEROUS_CONTENT" as const, threshold: "BLOCK_ONLY_HIGH" as const },
+];
 
 const messageSchema = z.object({
   role: z.enum(["user", "assistant"]),
@@ -30,12 +37,16 @@ const replySchema = z.object({
 });
 
 function getModel() {
-  const apiKey = process.env.OPENAI_API_KEY?.trim();
+  const apiKey =
+    process.env.GOOGLE_GENERATIVE_AI_API_KEY?.trim() ||
+    process.env.GEMINI_API_KEY?.trim();
   if (!apiKey) {
-    throw new Error("OPENAI_API_KEY is not configured.");
+    throw new Error(
+      "GOOGLE_GENERATIVE_AI_API_KEY (or GEMINI_API_KEY) is not configured."
+    );
   }
-  const openai = createOpenAI({ apiKey });
-  return openai(process.env.OPENAI_CHAT_MODEL?.trim() || "gpt-4o-mini");
+  const google = createGoogleGenerativeAI({ apiKey });
+  return google(process.env.GEMINI_CHAT_MODEL?.trim() || "gemini-2.5-flash");
 }
 
 export async function POST(request: Request) {
@@ -85,6 +96,12 @@ Current interest level (0–100): ${priorInterest}. Win threshold for this perso
 Return structured output only.`,
       messages: modelMessages,
       output: Output.object({ schema: replySchema }),
+      providerOptions: {
+        google: {
+          structuredOutputs: true,
+          safetySettings: GEMINI_SAFETY_SETTINGS,
+        },
+      },
     });
 
     if (!output) {
@@ -107,7 +124,7 @@ Return structured output only.`,
   } catch (e) {
     console.error("chat api error", e);
     return NextResponse.json(
-      { error: "Could not reach OpenAI. Check your API key and quota." },
+      { error: "Could not reach Gemini. Check your API key and quota." },
       { status: 502 }
     );
   }
