@@ -8,6 +8,7 @@ import {
   type ChatMood,
   type ChatPersonaId,
 } from "@/lib/chatPersonas";
+import { geminiApiKey, synthesizePersonaSpeech } from "@/lib/geminiTts";
 
 export const runtime = "nodejs";
 
@@ -107,12 +108,29 @@ Return structured output only.`,
       return NextResponse.json({ error: "No response from model." }, { status: 502 });
     }
 
+    const reply = output.reply.trim();
     const interest = clampInterest(priorInterest + output.interestDelta);
     const won = interest >= persona.winThreshold;
     const lost = !opening && interest <= 8 && parsed.messages.length >= 4;
 
+    let audioWavBase64: string | null = null;
+    const ttsKey = geminiApiKey();
+    if (ttsKey) {
+      try {
+        audioWavBase64 = await synthesizePersonaSpeech(
+          reply,
+          persona.name,
+          persona.ttsVoice,
+          ttsKey
+        );
+      } catch (e) {
+        console.error("chat tts error", e);
+      }
+    }
+
     return NextResponse.json({
-      reply: output.reply.trim(),
+      reply,
+      audioWavBase64,
       interest,
       interestDelta: output.interestDelta,
       mood: output.mood as ChatMood,
