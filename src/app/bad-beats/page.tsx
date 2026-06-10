@@ -171,6 +171,9 @@ export default function BadBeatsPage() {
         <Link href="/stats" className="tables-nav-link">
           Stats
         </Link>
+        <Link href="/chat" className="tables-nav-link">
+          VIP Lounge
+        </Link>
       </nav>
 
       <header className="bad-beats-header">

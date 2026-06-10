@@ -1,0 +1,386 @@
+"use client";
+
+import dynamic from "next/dynamic";
+import Link from "next/link";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type FormEvent,
+  type KeyboardEvent,
+} from "react";
+import {
+  CHAT_PERSONAS,
+  clampInterest,
+  moodLabel,
+  type ChatMood,
+  type ChatPersonaId,
+} from "@/lib/chatPersonas";
+
+const ChatAvatar = dynamic(() => import("./ChatAvatar"), {
+  ssr: false,
+  loading: () => <div className="chat-avatar-canvas-wrap chat-avatar-loading">Loading…</div>,
+});
+
+const CHAT_GATE_STORAGE = "joes-chat-gate";
+const CHAT_GATE_PASSWORD = "joescasino";
+
+type ChatMessage = { role: "user" | "assistant"; content: string };
+
+type ChatApiResponse = {
+  reply?: string;
+  interest?: number;
+  mood?: ChatMood;
+  won?: boolean;
+  lost?: boolean;
+  error?: string;
+};
+
+export default function ChatPage() {
+  const [gateReady, setGateReady] = useState(false);
+  const [chatUnlocked, setChatUnlocked] = useState(false);
+  const [gatePw, setGatePw] = useState("");
+  const [gateError, setGateError] = useState("");
+
+  const [personaId, setPersonaId] = useState<ChatPersonaId | null>(null);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [interest, setInterest] = useState(0);
+  const [mood, setMood] = useState<ChatMood>("curious");
+  const [won, setWon] = useState(false);
+  const [lost, setLost] = useState(false);
+  const [input, setInput] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [speaking, setSpeaking] = useState(false);
+  const [error, setError] = useState("");
+  const [bootstrapping, setBootstrapping] = useState(false);
+
+  const threadRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    try {
+      setChatUnlocked(sessionStorage.getItem(CHAT_GATE_STORAGE) === "1");
+    } catch {
+      setChatUnlocked(false);
+    }
+    setGateReady(true);
+  }, []);
+
+  useEffect(() => {
+    const el = threadRef.current;
+    if (!el) return;
+    el.scrollTop = el.scrollHeight;
+  }, [messages, loading]);
+
+  const handleGateSubmit = (e: FormEvent) => {
+    e.preventDefault();
+    const v = gatePw.trim();
+    if (v === CHAT_GATE_PASSWORD) {
+      try {
+        sessionStorage.setItem(CHAT_GATE_STORAGE, "1");
+      } catch {
+        /* ignore */
+      }
+      setChatUnlocked(true);
+      setGateError("");
+      setGatePw("");
+    } else {
+      setGateError("Wrong password.");
+    }
+  };
+
+  const callChat = useCallback(
+    async (payload: {
+      personaId: ChatPersonaId;
+      interest: number;
+      messages: ChatMessage[];
+      opening?: boolean;
+    }): Promise<ChatApiResponse | null> => {
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = (await res.json()) as ChatApiResponse;
+      if (!res.ok) {
+        setError(data.error || "Something went wrong.");
+        return null;
+      }
+      return data;
+    },
+    []
+  );
+
+  const startPersona = useCallback(
+    async (id: ChatPersonaId) => {
+      const persona = CHAT_PERSONAS[id];
+      setPersonaId(id);
+      setMessages([]);
+      setInterest(persona.startInterest);
+      setMood("curious");
+      setWon(false);
+      setLost(false);
+      setError("");
+      setBootstrapping(true);
+      setLoading(true);
+      setSpeaking(true);
+
+      const data = await callChat({
+        personaId: id,
+        interest: persona.startInterest,
+        messages: [],
+        opening: true,
+      });
+
+      setLoading(false);
+      setBootstrapping(false);
+      setSpeaking(false);
+
+      if (!data?.reply) return;
+
+      setMessages([{ role: "assistant", content: data.reply }]);
+      if (typeof data.interest === "number") setInterest(data.interest);
+      if (data.mood) setMood(data.mood);
+      if (data.won) setWon(true);
+      if (data.lost) setLost(true);
+    },
+    [callChat]
+  );
+
+  const resetSession = () => {
+    setPersonaId(null);
+    setMessages([]);
+    setInterest(0);
+    setMood("curious");
+    setWon(false);
+    setLost(false);
+    setInput("");
+    setError("");
+  };
+
+  const sendUserMessage = async () => {
+    const text = input.trim();
+    if (!text || !personaId || loading || won || lost) return;
+
+    const nextMessages: ChatMessage[] = [...messages, { role: "user", content: text }];
+    setMessages(nextMessages);
+    setInput("");
+    setError("");
+    setLoading(true);
+    setSpeaking(true);
+
+    const data = await callChat({
+      personaId,
+      interest,
+      messages: nextMessages,
+    });
+
+    setLoading(false);
+    setSpeaking(false);
+
+    if (!data?.reply) return;
+
+    setMessages((prev) => [...prev, { role: "assistant", content: data.reply! }]);
+    if (typeof data.interest === "number") setInterest(data.interest);
+    if (data.mood) setMood(data.mood);
+    if (data.won) setWon(true);
+    if (data.lost) setLost(true);
+  };
+
+  const onComposerKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      void sendUserMessage();
+    }
+  };
+
+  const showGateOverlay = !gateReady || !chatUnlocked;
+  const pageInteractive = gateReady && chatUnlocked;
+  const persona = personaId ? CHAT_PERSONAS[personaId] : null;
+  const winThreshold = persona?.winThreshold ?? 100;
+
+  return (
+    <>
+      <div
+        className={`chat-page${!pageInteractive ? " chat-page--behind-gate" : ""}`}
+        aria-hidden={!pageInteractive}
+      >
+        <div className="tables-suits chat-suits" aria-hidden="true">
+          <span className="suit suit-1">&spades;</span>
+          <span className="suit suit-2">&hearts;</span>
+          <span className="suit suit-3">&diams;</span>
+          <span className="suit suit-4">&clubs;</span>
+        </div>
+
+        <nav className="tables-nav">
+          <Link href="/" className="tables-nav-link">
+            &larr; Leaderboard
+          </Link>
+          <Link href="/tables" className="tables-nav-link">
+            Live Tables
+          </Link>
+          <Link href="/bad-beats" className="tables-nav-link">
+            Bad Beats
+          </Link>
+        </nav>
+
+        <header className="chat-header">
+          <p className="chat-eyebrow">Joe&apos;s Casino · VIP Lounge</p>
+          <h1 className="chat-title">Sofia</h1>
+          {persona ? (
+            <p className="chat-sub">
+              {persona.label} mode · win at {winThreshold}% interest
+            </p>
+          ) : (
+            <p className="chat-sub">Pick a vibe and see if you can charm her.</p>
+          )}
+        </header>
+
+        {!personaId ? (
+          <main className="chat-picker">
+            <p className="chat-picker-lead">Choose difficulty</p>
+            <div className="chat-persona-grid">
+              {(Object.keys(CHAT_PERSONAS) as ChatPersonaId[]).map((id) => {
+                const p = CHAT_PERSONAS[id];
+                return (
+                  <button
+                    key={id}
+                    type="button"
+                    className="chat-persona-card"
+                    disabled={bootstrapping}
+                    onClick={() => void startPersona(id)}
+                  >
+                    <span className="chat-persona-label">{p.label}</span>
+                    <span className="chat-persona-tag">{p.tagline}</span>
+                    <span className="chat-persona-meta">
+                      Starts {p.startInterest}% · goal {p.winThreshold}%
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </main>
+        ) : (
+          <main className="chat-main">
+            <div className="chat-layout">
+              <aside className="chat-avatar-panel">
+                <ChatAvatar mood={mood} speaking={speaking || loading} />
+                <div className="chat-meter">
+                  <div className="chat-meter-head">
+                    <span>Interest</span>
+                    <span>{clampInterest(interest)}%</span>
+                  </div>
+                  <div className="chat-meter-track" aria-hidden="true">
+                    <div
+                      className="chat-meter-fill"
+                      style={{ width: `${clampInterest(interest)}%` }}
+                    />
+                    <div
+                      className="chat-meter-goal"
+                      style={{ left: `${winThreshold}%` }}
+                      title={`Win at ${winThreshold}%`}
+                    />
+                  </div>
+                  <p className="chat-mood">{moodLabel(mood)}</p>
+                </div>
+                {won ? (
+                  <p className="chat-banner chat-banner--win">She&apos;s into you. You win.</p>
+                ) : lost ? (
+                  <p className="chat-banner chat-banner--lose">
+                    She&apos;s done for tonight. Try another approach.
+                  </p>
+                ) : null}
+                <button type="button" className="chat-reset-btn" onClick={resetSession}>
+                  New game
+                </button>
+              </aside>
+
+              <section className="chat-panel">
+                <div className="chat-thread" ref={threadRef}>
+                  {messages.map((m, i) => (
+                    <div
+                      key={`${i}-${m.role}`}
+                      className={`chat-bubble chat-bubble--${m.role}`}
+                    >
+                      {m.content}
+                    </div>
+                  ))}
+                  {loading ? (
+                    <div className="chat-bubble chat-bubble--assistant chat-bubble--typing">
+                      …
+                    </div>
+                  ) : null}
+                </div>
+
+                {error ? <p className="chat-error">{error}</p> : null}
+
+                <div className="chat-composer">
+                  <textarea
+                    className="chat-input"
+                    rows={2}
+                    placeholder={
+                      won
+                        ? "You won — start a new game or keep chatting."
+                        : lost
+                          ? "She's not feeling it. Start a new game."
+                          : "Say something charming…"
+                    }
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    onKeyDown={onComposerKeyDown}
+                    disabled={loading || bootstrapping}
+                  />
+                  <button
+                    type="button"
+                    className="modal-btn modal-btn-submit chat-send"
+                    disabled={loading || bootstrapping || !input.trim()}
+                    onClick={() => void sendUserMessage()}
+                  >
+                    Send
+                  </button>
+                </div>
+              </section>
+            </div>
+          </main>
+        )}
+      </div>
+
+      {showGateOverlay ? (
+        <div className="tables-gate-overlay" role="presentation">
+          {!gateReady ? (
+            <p className="tables-gate-loading">Loading…</p>
+          ) : (
+            <form
+              className="modal-card tables-gate-card"
+              onSubmit={handleGateSubmit}
+              autoComplete="off"
+            >
+              <h2 className="modal-title">VIP Lounge</h2>
+              <p className="tables-gate-hint">Enter the password to open the lounge chat.</p>
+              <label className="modal-label">
+                Password
+                <input
+                  className="modal-input"
+                  type="password"
+                  name="chat-gate-password"
+                  autoComplete="current-password"
+                  autoFocus
+                  value={gatePw}
+                  onChange={(e) => {
+                    setGatePw(e.target.value);
+                    setGateError("");
+                  }}
+                  placeholder="Password"
+                />
+              </label>
+              {gateError ? <p className="tables-gate-error">{gateError}</p> : null}
+              <button type="submit" className="modal-btn modal-btn-submit">
+                Continue
+              </button>
+            </form>
+          )}
+        </div>
+      ) : null}
+    </>
+  );
+}

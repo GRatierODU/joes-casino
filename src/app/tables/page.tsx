@@ -308,6 +308,9 @@ export default function TablesPage() {
         <Link href="/bad-beats" className="tables-nav-link">
           Bad Beats
         </Link>
+        <Link href="/chat" className="tables-nav-link">
+          VIP Lounge
+        </Link>
       </nav>
 
       <header className="tables-header">

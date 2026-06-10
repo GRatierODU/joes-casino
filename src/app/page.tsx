@@ -292,6 +292,9 @@ export default function Home() {
             <Link href="/bad-beats" className="home-tables-link">
               Bad Beats Hall of Fame &rarr;
             </Link>
+            <Link href="/chat" className="home-tables-link">
+              VIP Lounge &rarr;
+            </Link>
           </div>
           <div className="hero-scroll-cue">
             <span />
