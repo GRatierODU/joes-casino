@@ -79,7 +79,7 @@ export async function POST(request: Request) {
         {
           role: "user" as const,
           content:
-            "The player just walked up to your table in the lounge. Give a short in-character greeting (1–2 sentences) as Sofia. Set interestDelta based on persona starting energy (small positive or neutral).",
+            "The player just walked up to flirt with you in the VIP lounge. Give a short in-character greeting (1–2 sentences) as Sofia—you know they're interested, but you haven't agreed to anything yet. Set interestDelta based on persona starting energy.",
         },
       ]
     : parsed.messages.map((m) => ({
@@ -92,7 +92,7 @@ export async function POST(request: Request) {
       model,
       system: `${persona.systemPrompt}
 
-Current interest level (0–100): ${priorInterest}. Win threshold for this persona: ${persona.winThreshold}.
+Current attraction (0–100): ${priorInterest}. If attraction is at or above ${persona.winThreshold}, Sofia agrees to leave with the player and go home together tonight (say yes in character—suggestive, not graphic). Below that, she keeps flirting or holding back depending on persona.
 Return structured output only.`,
       messages: modelMessages,
       output: Output.object({ schema: replySchema }),

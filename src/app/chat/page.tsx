@@ -1,6 +1,6 @@
 "use client";
 
-import dynamic from "next/dynamic";
+import Image from "next/image";
 import Link from "next/link";
 import {
   useCallback,
@@ -17,11 +17,6 @@ import {
   type ChatMood,
   type ChatPersonaId,
 } from "@/lib/chatPersonas";
-
-const ChatAvatar = dynamic(() => import("./ChatAvatar"), {
-  ssr: false,
-  loading: () => <div className="chat-avatar-canvas-wrap chat-avatar-loading">Loading…</div>,
-});
 
 const CHAT_GATE_STORAGE = "joes-chat-gate";
 const CHAT_GATE_PASSWORD = "joescasino";
@@ -147,17 +142,6 @@ export default function ChatPage() {
     [callChat]
   );
 
-  const resetSession = () => {
-    setPersonaId(null);
-    setMessages([]);
-    setInterest(0);
-    setMood("curious");
-    setWon(false);
-    setLost(false);
-    setInput("");
-    setError("");
-  };
-
   const sendUserMessage = async () => {
     const text = input.trim();
     if (!text || !personaId || loading || won || lost) return;
@@ -197,7 +181,6 @@ export default function ChatPage() {
   const showGateOverlay = !gateReady || !chatUnlocked;
   const pageInteractive = gateReady && chatUnlocked;
   const persona = personaId ? CHAT_PERSONAS[personaId] : null;
-  const winThreshold = persona?.winThreshold ?? 100;
 
   return (
     <>
@@ -227,13 +210,11 @@ export default function ChatPage() {
         <header className="chat-header">
           <p className="chat-eyebrow">Joe&apos;s Casino · VIP Lounge</p>
           <h1 className="chat-title">Sofia</h1>
-          {persona ? (
-            <p className="chat-sub">
-              {persona.label} mode · win at {winThreshold}% interest
-            </p>
-          ) : (
-            <p className="chat-sub">Pick a vibe and see if you can charm her.</p>
-          )}
+          {!personaId ? (
+            <p className="chat-sub">Talk her into coming home with you tonight.</p>
+          ) : persona ? (
+            <p className="chat-sub">{persona.label}</p>
+          ) : null}
         </header>
 
         {!personaId ? (
@@ -252,9 +233,6 @@ export default function ChatPage() {
                   >
                     <span className="chat-persona-label">{p.label}</span>
                     <span className="chat-persona-tag">{p.tagline}</span>
-                    <span className="chat-persona-meta">
-                      Starts {p.startInterest}% · goal {p.winThreshold}%
-                    </span>
                   </button>
                 );
               })}
@@ -264,10 +242,22 @@ export default function ChatPage() {
           <main className="chat-main">
             <div className="chat-layout">
               <aside className="chat-avatar-panel">
-                <ChatAvatar mood={mood} speaking={speaking || loading} />
+                <div
+                  className={`chat-avatar-photo${speaking || loading ? " chat-avatar-photo--speaking" : ""} chat-avatar-photo--${mood}`}
+                >
+                  <Image
+                    src="/chat/sofia-portrait.jpg"
+                    alt="Sofia in the VIP lounge"
+                    fill
+                    sizes="(max-width: 900px) 100vw, 340px"
+                    className="chat-avatar-photo-img"
+                    priority
+                  />
+                  <div className="chat-avatar-photo-vignette" aria-hidden="true" />
+                </div>
                 <div className="chat-meter">
                   <div className="chat-meter-head">
-                    <span>Interest</span>
+                    <span>Attraction</span>
                     <span>{clampInterest(interest)}%</span>
                   </div>
                   <div className="chat-meter-track" aria-hidden="true">
@@ -275,24 +265,18 @@ export default function ChatPage() {
                       className="chat-meter-fill"
                       style={{ width: `${clampInterest(interest)}%` }}
                     />
-                    <div
-                      className="chat-meter-goal"
-                      style={{ left: `${winThreshold}%` }}
-                      title={`Win at ${winThreshold}%`}
-                    />
                   </div>
                   <p className="chat-mood">{moodLabel(mood)}</p>
                 </div>
                 {won ? (
-                  <p className="chat-banner chat-banner--win">She&apos;s into you. You win.</p>
+                  <p className="chat-banner chat-banner--win">
+                    She&apos;s coming home with you. You win.
+                  </p>
                 ) : lost ? (
                   <p className="chat-banner chat-banner--lose">
-                    She&apos;s done for tonight. Try another approach.
+                    She&apos;s not going home with you tonight.
                   </p>
                 ) : null}
-                <button type="button" className="chat-reset-btn" onClick={resetSession}>
-                  New game
-                </button>
               </aside>
 
               <section className="chat-panel">
@@ -320,10 +304,10 @@ export default function ChatPage() {
                     rows={2}
                     placeholder={
                       won
-                        ? "You won — start a new game or keep chatting."
+                        ? "She said yes — keep the night going…"
                         : lost
-                          ? "She's not feeling it. Start a new game."
-                          : "Say something charming…"
+                          ? "She shut it down for tonight…"
+                          : "Flirt. Build tension. Close the deal…"
                     }
                     value={input}
                     onChange={(e) => setInput(e.target.value)}

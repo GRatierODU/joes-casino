@@ -2955,22 +2955,68 @@ body {
   gap: 0.75rem;
 }
 
-.chat-avatar-canvas-wrap {
+.chat-avatar-photo {
+  position: relative;
   width: 100%;
   height: min(52vh, 420px);
   min-height: 280px;
   border-radius: 14px;
   overflow: hidden;
-  border: 1px solid rgba(212, 175, 95, 0.2);
+  border: 1px solid rgba(212, 175, 95, 0.28);
   background: #0d0b10;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
 }
 
-.chat-avatar-loading {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #9e9a92;
-  font-size: 0.9rem;
+.chat-avatar-photo-img {
+  object-fit: cover;
+  object-position: center 18%;
+  transform: scale(1);
+  transition: transform 0.35s ease, filter 0.35s ease;
+}
+
+.chat-avatar-photo--speaking .chat-avatar-photo-img {
+  animation: chat-avatar-speak 0.55s ease-in-out infinite alternate;
+}
+
+.chat-avatar-photo--cold .chat-avatar-photo-img {
+  filter: saturate(0.82) brightness(0.92);
+}
+
+.chat-avatar-photo--curious .chat-avatar-photo-img {
+  filter: saturate(0.95) brightness(0.98);
+}
+
+.chat-avatar-photo--warm .chat-avatar-photo-img {
+  filter: saturate(1.05) brightness(1.02) sepia(0.06);
+}
+
+.chat-avatar-photo--flirty .chat-avatar-photo-img {
+  filter: saturate(1.12) brightness(1.04) sepia(0.1);
+}
+
+.chat-avatar-photo--smitten .chat-avatar-photo-img {
+  filter: saturate(1.18) brightness(1.06) sepia(0.14);
+}
+
+.chat-avatar-photo-vignette {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    180deg,
+    rgba(13, 11, 16, 0.05) 0%,
+    rgba(13, 11, 16, 0) 35%,
+    rgba(13, 11, 16, 0.55) 100%
+  );
+}
+
+@keyframes chat-avatar-speak {
+  from {
+    transform: scale(1.01);
+  }
+  to {
+    transform: scale(1.035);
+  }
 }
 
 .chat-meter {
@@ -3003,16 +3049,6 @@ body {
   transition: width 0.45s ease;
 }
 
-.chat-meter-goal {
-  position: absolute;
-  top: -3px;
-  width: 2px;
-  height: 16px;
-  margin-left: -1px;
-  background: var(--gold);
-  box-shadow: 0 0 8px rgba(212, 175, 95, 0.6);
-}
-
 .chat-mood {
   margin: 0.45rem 0 0;
   font-size: 0.85rem;
@@ -3038,21 +3074,6 @@ body {
   background: rgba(140, 72, 72, 0.2);
   border: 1px solid rgba(200, 120, 120, 0.35);
   color: #f0b0b0;
-}
-
-.chat-reset-btn {
-  align-self: center;
-  padding: 0.45rem 0.9rem;
-  border: 1px solid rgba(212, 175, 95, 0.35);
-  border-radius: 8px;
-  background: transparent;
-  color: var(--gold);
-  font-size: 0.82rem;
-  cursor: pointer;
-}
-
-.chat-reset-btn:hover {
-  background: rgba(212, 175, 95, 0.08);
 }
 
 .chat-panel {
