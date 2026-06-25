@@ -24,7 +24,7 @@ const messageSchema = z.object({
 });
 
 const bodySchema = z.object({
-  personaId: z.enum(["easy", "average", "hard"]),
+  personaId: z.enum(["easy"]).optional(),
   interest: z.number().min(0).max(100),
   messages: z.array(messageSchema).max(80),
   opening: z.boolean().optional(),
@@ -59,9 +59,6 @@ export async function POST(request: Request) {
   }
 
   const persona = getPersona(parsed.personaId);
-  if (!persona) {
-    return NextResponse.json({ error: "Unknown persona." }, { status: 400 });
-  }
 
   let model;
   try {

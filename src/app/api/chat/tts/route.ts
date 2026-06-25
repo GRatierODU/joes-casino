@@ -1,13 +1,13 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { getPersona, type ChatPersonaId } from "@/lib/chatPersonas";
+import { getPersona, KACEY_J, type ChatPersonaId } from "@/lib/chatPersonas";
 import { parsePcmSampleRate, pcm16ToWav } from "@/lib/pcmToWav";
 
 export const runtime = "nodejs";
 
 const bodySchema = z.object({
   text: z.string().min(1).max(1200),
-  personaId: z.enum(["easy", "average", "hard"]).optional(),
+  personaId: z.enum(["easy"]).optional(),
 });
 
 const TTS_MODEL =
@@ -40,7 +40,7 @@ export async function POST(request: Request) {
 
   const persona = personaId ? getPersona(personaId) : null;
   const voiceName = persona?.ttsVoice ?? DEFAULT_TTS_VOICE;
-  const speakerName = persona?.name ?? "Sofia";
+  const speakerName = persona?.name ?? KACEY_J.name;
 
   const apiKey = geminiApiKey();
   if (!apiKey) {

@@ -11,16 +11,15 @@ import {
   type KeyboardEvent,
 } from "react";
 import {
-  CHAT_PERSONAS,
   clampInterest,
+  KACEY_J,
+  KACEY_J_PERSONA,
   moodLabel,
   type ChatMood,
-  type ChatPersonaId,
 } from "@/lib/chatPersonas";
 import { speakSofia, stopSofiaSpeech } from "@/lib/sofiaSpeech";
 
 const CHAT_GATE_STORAGE = "joes-chat-gate";
-const CHAT_VOICE_STORAGE = "joes-chat-voice";
 const CHAT_GATE_PASSWORD = "joescasino";
 
 type ChatMessage = { role: "user" | "assistant"; content: string };
@@ -40,9 +39,9 @@ export default function ChatPage() {
   const [gatePw, setGatePw] = useState("");
   const [gateError, setGateError] = useState("");
 
-  const [personaId, setPersonaId] = useState<ChatPersonaId | null>(null);
+  const [chatStarted, setChatStarted] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [interest, setInterest] = useState(0);
+  const [interest, setInterest] = useState(KACEY_J_PERSONA.startInterest);
   const [mood, setMood] = useState<ChatMood>("curious");
   const [won, setWon] = useState(false);
   const [lost, setLost] = useState(false);
@@ -51,34 +50,19 @@ export default function ChatPage() {
   const [speaking, setSpeaking] = useState(false);
   const [error, setError] = useState("");
   const [bootstrapping, setBootstrapping] = useState(false);
-  const [voiceOn, setVoiceOn] = useState(true);
 
   const threadRef = useRef<HTMLDivElement>(null);
   const cancelSpeechRef = useRef<(() => void) | null>(null);
-  const voiceOnRef = useRef(true);
+  const openingStartedRef = useRef(false);
 
   useEffect(() => {
     try {
       setChatUnlocked(sessionStorage.getItem(CHAT_GATE_STORAGE) === "1");
-      const v = sessionStorage.getItem(CHAT_VOICE_STORAGE);
-      if (v === "0") {
-        setVoiceOn(false);
-        voiceOnRef.current = false;
-      }
     } catch {
       setChatUnlocked(false);
     }
     setGateReady(true);
   }, []);
-
-  useEffect(() => {
-    voiceOnRef.current = voiceOn;
-    try {
-      sessionStorage.setItem(CHAT_VOICE_STORAGE, voiceOn ? "1" : "0");
-    } catch {
-      /* ignore */
-    }
-  }, [voiceOn]);
 
   useEffect(() => {
     return () => {
@@ -87,11 +71,10 @@ export default function ChatPage() {
     };
   }, []);
 
-  const playPersonaLine = useCallback(async (line: string, id: ChatPersonaId) => {
+  const playKaceyLine = useCallback(async (line: string) => {
     cancelSpeechRef.current?.();
     cancelSpeechRef.current = await speakSofia(line, {
-      enabled: voiceOnRef.current,
-      personaId: id,
+      personaId: "easy",
       onStart: () => setSpeaking(true),
       onEnd: () => setSpeaking(false),
     });
@@ -122,7 +105,6 @@ export default function ChatPage() {
 
   const callChat = useCallback(
     async (payload: {
-      personaId: ChatPersonaId;
       interest: number;
       messages: ChatMessage[];
       opening?: boolean;
@@ -130,7 +112,7 @@ export default function ChatPage() {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({ personaId: "easy", ...payload }),
       });
       const data = (await res.json()) as ChatApiResponse;
       if (!res.ok) {
@@ -142,44 +124,46 @@ export default function ChatPage() {
     []
   );
 
-  const startPersona = useCallback(
-    async (id: ChatPersonaId) => {
-      const persona = CHAT_PERSONAS[id];
-      setPersonaId(id);
-      setMessages([]);
-      setInterest(persona.startInterest);
-      setMood("curious");
-      setWon(false);
-      setLost(false);
-      setError("");
-      setBootstrapping(true);
-      setLoading(true);
+  const startChat = useCallback(async () => {
+    if (openingStartedRef.current) return;
+    openingStartedRef.current = true;
+    setChatStarted(true);
+    setMessages([]);
+    setInterest(KACEY_J_PERSONA.startInterest);
+    setMood("curious");
+    setWon(false);
+    setLost(false);
+    setError("");
+    setBootstrapping(true);
+    setLoading(true);
 
-      const data = await callChat({
-        personaId: id,
-        interest: persona.startInterest,
-        messages: [],
-        opening: true,
-      });
+    const data = await callChat({
+      interest: KACEY_J_PERSONA.startInterest,
+      messages: [],
+      opening: true,
+    });
 
-      setLoading(false);
-      setBootstrapping(false);
+    setLoading(false);
+    setBootstrapping(false);
 
-      if (!data?.reply) return;
+    if (!data?.reply) return;
 
-      setMessages([{ role: "assistant", content: data.reply }]);
-      if (typeof data.interest === "number") setInterest(data.interest);
-      if (data.mood) setMood(data.mood);
-      if (data.won) setWon(true);
-      if (data.lost) setLost(true);
-      void playPersonaLine(data.reply, id);
-    },
-    [callChat, playPersonaLine]
-  );
+    setMessages([{ role: "assistant", content: data.reply }]);
+    if (typeof data.interest === "number") setInterest(data.interest);
+    if (data.mood) setMood(data.mood);
+    if (data.won) setWon(true);
+    if (data.lost) setLost(true);
+    void playKaceyLine(data.reply);
+  }, [callChat, playKaceyLine]);
+
+  useEffect(() => {
+    if (!gateReady || !chatUnlocked) return;
+    void startChat();
+  }, [gateReady, chatUnlocked, startChat]);
 
   const sendUserMessage = async () => {
     const text = input.trim();
-    if (!text || !personaId || loading || won || lost) return;
+    if (!text || !chatStarted || loading || won || lost) return;
 
     const nextMessages: ChatMessage[] = [...messages, { role: "user", content: text }];
     setMessages(nextMessages);
@@ -188,7 +172,6 @@ export default function ChatPage() {
     setLoading(true);
 
     const data = await callChat({
-      personaId,
       interest,
       messages: nextMessages,
     });
@@ -202,7 +185,7 @@ export default function ChatPage() {
     if (data.mood) setMood(data.mood);
     if (data.won) setWon(true);
     if (data.lost) setLost(true);
-    void playPersonaLine(data.reply, personaId);
+    void playKaceyLine(data.reply);
   };
 
   const onComposerKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
@@ -214,7 +197,6 @@ export default function ChatPage() {
 
   const showGateOverlay = !gateReady || !chatUnlocked;
   const pageInteractive = gateReady && chatUnlocked;
-  const persona = personaId ? CHAT_PERSONAS[personaId] : null;
 
   return (
     <>
@@ -243,151 +225,97 @@ export default function ChatPage() {
 
         <header className="chat-header">
           <p className="chat-eyebrow">Joe&apos;s Casino · VIP Lounge</p>
-          <h1 className="chat-title">{persona?.name ?? "VIP Lounge"}</h1>
-          {!personaId ? (
-            <p className="chat-sub">Pick who you want to take home tonight.</p>
-          ) : persona ? (
-            <p className="chat-sub">
-              {persona.label} · {persona.tagline}
-            </p>
-          ) : null}
+          <h1 className="chat-title">Kacey J</h1>
+          <p className="chat-sub">Talk her into coming home with you tonight.</p>
         </header>
 
-        {!personaId ? (
-          <main className="chat-picker">
-            <p className="chat-picker-lead">Who are you talking to?</p>
-            <div className="chat-persona-grid">
-              {(Object.keys(CHAT_PERSONAS) as ChatPersonaId[]).map((id) => {
-                const p = CHAT_PERSONAS[id];
-                return (
-                  <button
-                    key={id}
-                    type="button"
-                    className="chat-persona-card"
-                    disabled={bootstrapping}
-                    onClick={() => void startPersona(id)}
-                  >
-                    <span className="chat-persona-thumb">
-                      <Image
-                        src={p.portrait}
-                        alt={p.name}
-                        fill
-                        sizes="120px"
-                        className="chat-persona-thumb-img"
-                      />
-                    </span>
-                    <span className="chat-persona-label">{p.name}</span>
-                    <span className="chat-persona-diff">{p.label}</span>
-                    <span className="chat-persona-tag">{p.tagline}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </main>
-        ) : (
-          <main className="chat-main">
-            <div className="chat-layout">
-              <aside className="chat-avatar-panel">
-                <div
-                  className={`chat-avatar-photo${speaking || loading ? " chat-avatar-photo--speaking" : ""} chat-avatar-photo--${mood}`}
-                >
-                  <Image
-                    src={persona?.portrait ?? "/chat/sofia-portrait.jpg"}
-                    alt={`${persona?.name ?? "Sofia"} in the VIP lounge`}
-                    fill
-                    sizes="(max-width: 900px) 100vw, 340px"
-                    className="chat-avatar-photo-img"
-                    priority
-                  />
-                  <div className="chat-avatar-photo-vignette" aria-hidden="true" />
+        <main className="chat-main">
+          <div className="chat-layout">
+            <aside className="chat-avatar-panel">
+              <div
+                className={`chat-avatar-photo${speaking || loading ? " chat-avatar-photo--speaking" : ""} chat-avatar-photo--${mood}`}
+              >
+                <Image
+                  src={KACEY_J.portrait}
+                  alt="Kacey J in the VIP lounge"
+                  fill
+                  sizes="(max-width: 900px) 100vw, 340px"
+                  className="chat-avatar-photo-img"
+                  priority
+                />
+                <div className="chat-avatar-photo-vignette" aria-hidden="true" />
+              </div>
+              <div className="chat-meter">
+                <div className="chat-meter-head">
+                  <span>Attraction</span>
+                  <span>{clampInterest(interest)}%</span>
                 </div>
+                <div className="chat-meter-track" aria-hidden="true">
+                  <div
+                    className="chat-meter-fill"
+                    style={{ width: `${clampInterest(interest)}%` }}
+                  />
+                </div>
+                <p className="chat-mood">{moodLabel(mood)}</p>
+              </div>
+              {won ? (
+                <p className="chat-banner chat-banner--win">
+                  She&apos;s coming home with you. You win.
+                </p>
+              ) : lost ? (
+                <p className="chat-banner chat-banner--lose">
+                  She&apos;s not going home with you tonight.
+                </p>
+              ) : null}
+            </aside>
+
+            <section className="chat-panel">
+              <div className="chat-thread" ref={threadRef}>
+                {messages.map((m, i) => (
+                  <div
+                    key={`${i}-${m.role}`}
+                    className={`chat-bubble chat-bubble--${m.role}`}
+                  >
+                    {m.content}
+                  </div>
+                ))}
+                {loading ? (
+                  <div className="chat-bubble chat-bubble--assistant chat-bubble--typing">
+                    …
+                  </div>
+                ) : null}
+              </div>
+
+              {error ? <p className="chat-error">{error}</p> : null}
+
+              <div className="chat-composer">
+                <textarea
+                  className="chat-input"
+                  rows={2}
+                  placeholder={
+                    won
+                      ? "She said yes — keep the night going…"
+                      : lost
+                        ? "She shut it down for tonight…"
+                        : "Flirt. Build tension. Close the deal…"
+                  }
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={onComposerKeyDown}
+                  disabled={loading || bootstrapping}
+                />
                 <button
                   type="button"
-                  className={`chat-voice-toggle${voiceOn ? " chat-voice-toggle--on" : ""}`}
-                  onClick={() => {
-                    if (voiceOn) {
-                      cancelSpeechRef.current?.();
-                      stopSofiaSpeech();
-                      setSpeaking(false);
-                    }
-                    setVoiceOn((v) => !v);
-                  }}
-                  aria-pressed={voiceOn}
+                  className="modal-btn modal-btn-submit chat-send"
+                  disabled={loading || bootstrapping || !input.trim()}
+                  onClick={() => void sendUserMessage()}
                 >
-                  {voiceOn ? "Voice on" : "Voice off"}
+                  Send
                 </button>
-                <div className="chat-meter">
-                  <div className="chat-meter-head">
-                    <span>Attraction</span>
-                    <span>{clampInterest(interest)}%</span>
-                  </div>
-                  <div className="chat-meter-track" aria-hidden="true">
-                    <div
-                      className="chat-meter-fill"
-                      style={{ width: `${clampInterest(interest)}%` }}
-                    />
-                  </div>
-                  <p className="chat-mood">{moodLabel(mood)}</p>
-                </div>
-                {won ? (
-                  <p className="chat-banner chat-banner--win">
-                    She&apos;s coming home with you. You win.
-                  </p>
-                ) : lost ? (
-                  <p className="chat-banner chat-banner--lose">
-                    She&apos;s not going home with you tonight.
-                  </p>
-                ) : null}
-              </aside>
-
-              <section className="chat-panel">
-                <div className="chat-thread" ref={threadRef}>
-                  {messages.map((m, i) => (
-                    <div
-                      key={`${i}-${m.role}`}
-                      className={`chat-bubble chat-bubble--${m.role}`}
-                    >
-                      {m.content}
-                    </div>
-                  ))}
-                  {loading ? (
-                    <div className="chat-bubble chat-bubble--assistant chat-bubble--typing">
-                      …
-                    </div>
-                  ) : null}
-                </div>
-
-                {error ? <p className="chat-error">{error}</p> : null}
-
-                <div className="chat-composer">
-                  <textarea
-                    className="chat-input"
-                    rows={2}
-                    placeholder={
-                      won
-                        ? "She said yes — keep the night going…"
-                        : lost
-                          ? "She shut it down for tonight…"
-                          : "Flirt. Build tension. Close the deal…"
-                    }
-                    value={input}
-                    onChange={(e) => setInput(e.target.value)}
-                    onKeyDown={onComposerKeyDown}
-                    disabled={loading || bootstrapping}
-                  />
-                  <button
-                    type="button"
-                    className="modal-btn modal-btn-submit chat-send"
-                    disabled={loading || bootstrapping || !input.trim()}
-                    onClick={() => void sendUserMessage()}
-                  >
-                    Send
-                  </button>
-                </div>
-              </section>
-            </div>
-          </main>
-        )}
+              </div>
+            </section>
+          </div>
+        </main>
       </div>
 
       {showGateOverlay ? (
