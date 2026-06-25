@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { getPersona, KACEY, type ChatPersonaId } from "@/lib/chatPersonas";
+import { buildKaceyTtsPrompt } from "@/lib/audioTags";
+import { getPersona, type ChatPersonaId } from "@/lib/chatPersonas";
 import { parsePcmSampleRate, pcm16ToWav } from "@/lib/pcmToWav";
 
 export const runtime = "nodejs";
@@ -12,7 +13,7 @@ const bodySchema = z.object({
 
 const TTS_MODEL =
   process.env.GEMINI_TTS_MODEL?.trim() || "gemini-2.5-flash-preview-tts";
-const DEFAULT_TTS_VOICE = process.env.GEMINI_TTS_VOICE?.trim() || "Aoede";
+const DEFAULT_TTS_VOICE = process.env.GEMINI_TTS_VOICE?.trim() || "Leda";
 
 function geminiApiKey(): string | null {
   return (
@@ -40,7 +41,6 @@ export async function POST(request: Request) {
 
   const persona = personaId ? getPersona(personaId) : null;
   const voiceName = persona?.ttsVoice ?? DEFAULT_TTS_VOICE;
-  const speakerName = persona?.name ?? KACEY.name;
 
   const apiKey = geminiApiKey();
   if (!apiKey) {
@@ -59,7 +59,7 @@ export async function POST(request: Request) {
             role: "user",
             parts: [
               {
-                text: `Read the following line aloud as ${speakerName}, a young woman speaking naturally in a lounge (warm, conversational tone):\n\n${text}`,
+                text: buildKaceyTtsPrompt(text, voiceName),
               },
             ],
           },

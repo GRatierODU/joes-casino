@@ -17,6 +17,7 @@ import {
   moodLabel,
   type ChatMood,
 } from "@/lib/chatPersonas";
+import { stripAudioTags } from "@/lib/audioTags";
 import { speakSofia, stopSofiaSpeech } from "@/lib/sofiaSpeech";
 
 const CHAT_GATE_STORAGE = "joes-chat-gate";
@@ -157,7 +158,7 @@ export default function ChatPage() {
 
     if (!data?.reply) return;
 
-    setMessages([{ role: "assistant", content: data.reply }]);
+    setMessages([{ role: "assistant", content: stripAudioTags(data.reply) }]);
     if (typeof data.interest === "number") setInterest(data.interest);
     if (data.mood) setMood(data.mood);
     if (data.won) setWon(true);
@@ -190,7 +191,10 @@ export default function ChatPage() {
     if (!data?.reply) return;
 
     const assistantIndex = nextMessages.length;
-    setMessages((prev) => [...prev, { role: "assistant", content: data.reply! }]);
+    setMessages((prev) => [
+      ...prev,
+      { role: "assistant", content: stripAudioTags(data.reply!) },
+    ]);
     if (typeof data.interest === "number") setInterest(data.interest);
     if (data.mood) setMood(data.mood);
     if (data.won) setWon(true);

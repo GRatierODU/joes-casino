@@ -1,8 +1,11 @@
 import type { ChatPersonaId } from "./chatPersonas";
+import { stripAudioTags } from "./audioTags";
 
 export type SpeakSofiaOptions = {
   enabled?: boolean;
   personaId?: ChatPersonaId | null;
+  /** Clean text for on-screen word reveal; defaults to speech with tags stripped. */
+  displayText?: string;
   onStart?: () => void;
   onReveal?: (revealedText: string) => void;
   onEnd?: () => void;
@@ -52,18 +55,19 @@ function pickFemaleVoice(voices: SpeechSynthesisVoice[]): SpeechSynthesisVoice |
 }
 
 function speakWithBrowser(
-  text: string,
+  speechText: string,
+  displayText: string,
   opts: SpeakSofiaOptions
 ): Promise<() => void> {
   return loadVoices().then((voices) => {
     if (!window.speechSynthesis) {
-      opts.onReveal?.(text);
+      opts.onReveal?.(displayText);
       opts.onEnd?.();
       return () => {};
     }
 
     window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(text);
+    const utterance = new SpeechSynthesisUtterance(displayText);
     const voice = pickFemaleVoice(voices);
     if (voice) utterance.voice = voice;
     utterance.rate = 0.96;
@@ -74,7 +78,7 @@ function speakWithBrowser(
     const finish = () => {
       if (ended) return;
       ended = true;
-      opts.onReveal?.(text);
+      opts.onReveal?.(displayText);
       opts.onEnd?.();
     };
 
@@ -85,7 +89,7 @@ function speakWithBrowser(
     utterance.onboundary = (ev) => {
       if (ev.name !== "word" || ev.charIndex === undefined) return;
       const end = ev.charIndex + (ev.charLength ?? 0);
-      opts.onReveal?.(text.slice(0, end));
+      opts.onReveal?.(displayText.slice(0, end));
     };
     utterance.onend = finish;
     utterance.onerror = finish;
@@ -100,13 +104,14 @@ function speakWithBrowser(
 }
 
 async function speakWithGemini(
-  text: string,
+  speechText: string,
+  displayText: string,
   opts: SpeakSofiaOptions
 ): Promise<(() => void) | null> {
   const res = await fetch("/api/chat/tts", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ text, personaId: opts.personaId ?? undefined }),
+    body: JSON.stringify({ text: speechText, personaId: opts.personaId ?? undefined }),
   });
   if (!res.ok) return null;
 
@@ -117,14 +122,14 @@ async function speakWithGemini(
   const audio = new Audio(url);
   let ended = false;
   let rafId = 0;
-  const wordCount = splitSpeechTokens(text).length;
+  const wordCount = splitSpeechTokens(displayText).length;
   const estimatedDuration = Math.max(1.2, wordCount / 2.4);
 
   const syncReveal = () => {
     const duration =
       audio.duration && Number.isFinite(audio.duration) ? audio.duration : estimatedDuration;
     const ratio = duration > 0 ? Math.min(1, audio.currentTime / duration) : 0;
-    opts.onReveal?.(revealTextByProgress(text, ratio));
+    opts.onReveal?.(revealTextByProgress(displayText, ratio));
   };
 
   const tick = () => {
@@ -141,7 +146,7 @@ async function speakWithGemini(
     audio.removeEventListener("ended", finish);
     audio.removeEventListener("error", finish);
     URL.revokeObjectURL(url);
-    opts.onReveal?.(text);
+    opts.onReveal?.(displayText);
     opts.onEnd?.();
   };
 
@@ -171,24 +176,25 @@ async function speakWithGemini(
 
 /** Speak a line. Tries Gemini TTS first, then browser voices. Returns cancel fn. */
 export async function speakSofia(
-  text: string,
+  speechText: string,
   opts: SpeakSofiaOptions = {}
 ): Promise<() => void> {
-  const trimmed = text.trim();
+  const trimmed = speechText.trim();
+  const displayText = (opts.displayText ?? stripAudioTags(trimmed)).trim();
   if (!trimmed || opts.enabled === false) {
-    opts.onReveal?.(trimmed);
+    opts.onReveal?.(displayText);
     opts.onEnd?.();
     return () => {};
   }
 
   try {
-    const geminiCancel = await speakWithGemini(trimmed, opts);
+    const geminiCancel = await speakWithGemini(trimmed, displayText, opts);
     if (geminiCancel) return geminiCancel;
   } catch {
     /* fall through */
   }
 
-  return speakWithBrowser(trimmed, opts);
+  return speakWithBrowser(trimmed, displayText, opts);
 }
 
 export function stopSofiaSpeech(): void {
