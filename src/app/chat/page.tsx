@@ -48,6 +48,10 @@ export default function ChatPage() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [speaking, setSpeaking] = useState(false);
+  const [speakingReveal, setSpeakingReveal] = useState<{
+    messageIndex: number;
+    text: string;
+  } | null>(null);
   const [error, setError] = useState("");
   const [bootstrapping, setBootstrapping] = useState(false);
 
@@ -71,12 +75,17 @@ export default function ChatPage() {
     };
   }, []);
 
-  const playKaceyLine = useCallback(async (line: string) => {
+  const playKaceyLine = useCallback(async (line: string, messageIndex: number) => {
     cancelSpeechRef.current?.();
+    setSpeakingReveal({ messageIndex, text: "" });
     cancelSpeechRef.current = await speakSofia(line, {
       personaId: "easy",
       onStart: () => setSpeaking(true),
-      onEnd: () => setSpeaking(false),
+      onReveal: (text) => setSpeakingReveal({ messageIndex, text }),
+      onEnd: () => {
+        setSpeaking(false);
+        setSpeakingReveal(null);
+      },
     });
   }, []);
 
@@ -84,7 +93,7 @@ export default function ChatPage() {
     const el = threadRef.current;
     if (!el) return;
     el.scrollTop = el.scrollHeight;
-  }, [messages, loading]);
+  }, [messages, loading, speakingReveal]);
 
   const handleGateSubmit = (e: FormEvent) => {
     e.preventDefault();
@@ -153,7 +162,7 @@ export default function ChatPage() {
     if (data.mood) setMood(data.mood);
     if (data.won) setWon(true);
     if (data.lost) setLost(true);
-    void playKaceyLine(data.reply);
+    void playKaceyLine(data.reply, 0);
   }, [callChat, playKaceyLine]);
 
   useEffect(() => {
@@ -180,12 +189,13 @@ export default function ChatPage() {
 
     if (!data?.reply) return;
 
+    const assistantIndex = nextMessages.length;
     setMessages((prev) => [...prev, { role: "assistant", content: data.reply! }]);
     if (typeof data.interest === "number") setInterest(data.interest);
     if (data.mood) setMood(data.mood);
     if (data.won) setWon(true);
     if (data.lost) setLost(true);
-    void playKaceyLine(data.reply);
+    void playKaceyLine(data.reply, assistantIndex);
   };
 
   const onComposerKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
@@ -271,14 +281,24 @@ export default function ChatPage() {
 
             <section className="chat-panel">
               <div className="chat-thread" ref={threadRef}>
-                {messages.map((m, i) => (
-                  <div
-                    key={`${i}-${m.role}`}
-                    className={`chat-bubble chat-bubble--${m.role}`}
-                  >
-                    {m.content}
-                  </div>
-                ))}
+                {messages.map((m, i) => {
+                  const isRevealing =
+                    m.role === "assistant" && speakingReveal?.messageIndex === i;
+                  const displayText = isRevealing ? speakingReveal.text : m.content;
+                  const showCursor = isRevealing && speaking;
+
+                  return (
+                    <div
+                      key={`${i}-${m.role}`}
+                      className={`chat-bubble chat-bubble--${m.role}${showCursor ? " chat-bubble--revealing" : ""}`}
+                    >
+                      {displayText}
+                      {showCursor ? (
+                        <span className="chat-reveal-cursor" aria-hidden="true" />
+                      ) : null}
+                    </div>
+                  );
+                })}
                 {loading ? (
                   <div className="chat-bubble chat-bubble--assistant chat-bubble--typing">
                     …

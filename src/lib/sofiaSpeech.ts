@@ -4,10 +4,26 @@ export type SpeakSofiaOptions = {
   enabled?: boolean;
   personaId?: ChatPersonaId | null;
   onStart?: () => void;
+  onReveal?: (revealedText: string) => void;
   onEnd?: () => void;
 };
 
 let voicesReady: Promise<SpeechSynthesisVoice[]> | null = null;
+
+/** Split text into word tokens (word + trailing whitespace). */
+export function splitSpeechTokens(text: string): string[] {
+  const tokens = text.match(/\S+\s*/g);
+  return tokens ?? (text ? [text] : []);
+}
+
+/** Reveal text word-by-word from a 0–1 progress ratio. */
+export function revealTextByProgress(text: string, ratio: number): string {
+  if (ratio >= 1) return text;
+  const tokens = splitSpeechTokens(text);
+  if (!tokens.length) return "";
+  const count = Math.max(1, Math.ceil(ratio * tokens.length));
+  return tokens.slice(0, count).join("");
+}
 
 function loadVoices(): Promise<SpeechSynthesisVoice[]> {
   if (typeof window === "undefined" || !window.speechSynthesis) {
@@ -41,6 +57,7 @@ function speakWithBrowser(
 ): Promise<() => void> {
   return loadVoices().then((voices) => {
     if (!window.speechSynthesis) {
+      opts.onReveal?.(text);
       opts.onEnd?.();
       return () => {};
     }
@@ -57,10 +74,19 @@ function speakWithBrowser(
     const finish = () => {
       if (ended) return;
       ended = true;
+      opts.onReveal?.(text);
       opts.onEnd?.();
     };
 
-    utterance.onstart = () => opts.onStart?.();
+    utterance.onstart = () => {
+      opts.onStart?.();
+      opts.onReveal?.("");
+    };
+    utterance.onboundary = (ev) => {
+      if (ev.name !== "word" || ev.charIndex === undefined) return;
+      const end = ev.charIndex + (ev.charLength ?? 0);
+      opts.onReveal?.(text.slice(0, end));
+    };
     utterance.onend = finish;
     utterance.onerror = finish;
 
@@ -90,11 +116,32 @@ async function speakWithGemini(
   const url = URL.createObjectURL(blob);
   const audio = new Audio(url);
   let ended = false;
+  let rafId = 0;
+  const wordCount = splitSpeechTokens(text).length;
+  const estimatedDuration = Math.max(1.2, wordCount / 2.4);
+
+  const syncReveal = () => {
+    const duration =
+      audio.duration && Number.isFinite(audio.duration) ? audio.duration : estimatedDuration;
+    const ratio = duration > 0 ? Math.min(1, audio.currentTime / duration) : 0;
+    opts.onReveal?.(revealTextByProgress(text, ratio));
+  };
+
+  const tick = () => {
+    if (ended) return;
+    syncReveal();
+    rafId = requestAnimationFrame(tick);
+  };
 
   const finish = () => {
     if (ended) return;
     ended = true;
+    cancelAnimationFrame(rafId);
+    audio.removeEventListener("timeupdate", syncReveal);
+    audio.removeEventListener("ended", finish);
+    audio.removeEventListener("error", finish);
     URL.revokeObjectURL(url);
+    opts.onReveal?.(text);
     opts.onEnd?.();
   };
 
@@ -104,12 +151,16 @@ async function speakWithGemini(
     finish();
   };
 
-  audio.onended = finish;
-  audio.onerror = finish;
+  audio.addEventListener("timeupdate", syncReveal);
+  audio.addEventListener("ended", finish);
+  audio.addEventListener("error", finish);
 
   opts.onStart?.();
+  opts.onReveal?.("");
+
   try {
     await audio.play();
+    rafId = requestAnimationFrame(tick);
   } catch {
     finish();
     return null;
@@ -118,13 +169,14 @@ async function speakWithGemini(
   return cancel;
 }
 
-/** Speak Sofia's line. Tries Gemini TTS first, then browser voices. Returns cancel fn. */
+/** Speak a line. Tries Gemini TTS first, then browser voices. Returns cancel fn. */
 export async function speakSofia(
   text: string,
   opts: SpeakSofiaOptions = {}
 ): Promise<() => void> {
   const trimmed = text.trim();
   if (!trimmed || opts.enabled === false) {
+    opts.onReveal?.(trimmed);
     opts.onEnd?.();
     return () => {};
   }

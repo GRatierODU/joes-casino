@@ -3199,6 +3199,30 @@ body {
   font-style: italic;
 }
 
+.chat-bubble--revealing {
+  min-height: 1.4em;
+}
+
+.chat-reveal-cursor {
+  display: inline-block;
+  width: 2px;
+  height: 0.95em;
+  margin-left: 2px;
+  vertical-align: text-bottom;
+  background: rgba(240, 232, 220, 0.85);
+  animation: chat-reveal-blink 0.85s step-end infinite;
+}
+
+@keyframes chat-reveal-blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
+}
+
 .chat-error {
   margin: 0;
   padding: 0 1rem;
