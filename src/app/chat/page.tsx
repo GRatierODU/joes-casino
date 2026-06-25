@@ -12,8 +12,8 @@ import {
 } from "react";
 import {
   clampInterest,
-  KACEY_J,
-  KACEY_J_PERSONA,
+  KACEY,
+  KACEY_PERSONA,
   moodLabel,
   type ChatMood,
 } from "@/lib/chatPersonas";
@@ -41,7 +41,7 @@ export default function ChatPage() {
 
   const [chatStarted, setChatStarted] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [interest, setInterest] = useState(KACEY_J_PERSONA.startInterest);
+  const [interest, setInterest] = useState(KACEY_PERSONA.startInterest);
   const [mood, setMood] = useState<ChatMood>("curious");
   const [won, setWon] = useState(false);
   const [lost, setLost] = useState(false);
@@ -138,7 +138,7 @@ export default function ChatPage() {
     openingStartedRef.current = true;
     setChatStarted(true);
     setMessages([]);
-    setInterest(KACEY_J_PERSONA.startInterest);
+    setInterest(KACEY_PERSONA.startInterest);
     setMood("curious");
     setWon(false);
     setLost(false);
@@ -147,7 +147,7 @@ export default function ChatPage() {
     setLoading(true);
 
     const data = await callChat({
-      interest: KACEY_J_PERSONA.startInterest,
+      interest: KACEY_PERSONA.startInterest,
       messages: [],
       opening: true,
     });
@@ -235,8 +235,7 @@ export default function ChatPage() {
 
         <header className="chat-header">
           <p className="chat-eyebrow">Joe&apos;s Casino · VIP Lounge</p>
-          <h1 className="chat-title">Kacey J</h1>
-          <p className="chat-sub">Talk her into coming home with you tonight.</p>
+          <h1 className="chat-title">Kacey</h1>
         </header>
 
         <main className="chat-main">
@@ -246,8 +245,8 @@ export default function ChatPage() {
                 className={`chat-avatar-photo${speaking || loading ? " chat-avatar-photo--speaking" : ""} chat-avatar-photo--${mood}`}
               >
                 <Image
-                  src={KACEY_J.portrait}
-                  alt="Kacey J in the VIP lounge"
+                  src={KACEY.portrait}
+                  alt="Kacey in the VIP lounge"
                   fill
                   sizes="(max-width: 900px) 100vw, 340px"
                   className="chat-avatar-photo-img"

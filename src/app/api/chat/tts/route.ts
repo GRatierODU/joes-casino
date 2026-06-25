@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { getPersona, KACEY_J, type ChatPersonaId } from "@/lib/chatPersonas";
+import { getPersona, KACEY, type ChatPersonaId } from "@/lib/chatPersonas";
 import { parsePcmSampleRate, pcm16ToWav } from "@/lib/pcmToWav";
 
 export const runtime = "nodejs";
@@ -40,7 +40,7 @@ export async function POST(request: Request) {
 
   const persona = personaId ? getPersona(personaId) : null;
   const voiceName = persona?.ttsVoice ?? DEFAULT_TTS_VOICE;
-  const speakerName = persona?.name ?? KACEY_J.name;
+  const speakerName = persona?.name ?? KACEY.name;
 
   const apiKey = geminiApiKey();
   if (!apiKey) {
