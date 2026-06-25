@@ -17,17 +17,16 @@ import {
   type ChatMood,
   type ChatPersonaId,
 } from "@/lib/chatPersonas";
-import { playPersonaSpeech, stopPersonaSpeech } from "@/lib/sofiaSpeech";
+import { speakSofia, stopSofiaSpeech } from "@/lib/sofiaSpeech";
 
 const CHAT_GATE_STORAGE = "joes-chat-gate";
+const CHAT_VOICE_STORAGE = "joes-chat-voice";
 const CHAT_GATE_PASSWORD = "joescasino";
 
 type ChatMessage = { role: "user" | "assistant"; content: string };
 
 type ChatApiResponse = {
   reply?: string;
-  audioBase64?: string | null;
-  audioMime?: string | null;
   interest?: number;
   mood?: ChatMood;
   won?: boolean;
@@ -52,13 +51,20 @@ export default function ChatPage() {
   const [speaking, setSpeaking] = useState(false);
   const [error, setError] = useState("");
   const [bootstrapping, setBootstrapping] = useState(false);
+  const [voiceOn, setVoiceOn] = useState(true);
 
   const threadRef = useRef<HTMLDivElement>(null);
   const cancelSpeechRef = useRef<(() => void) | null>(null);
+  const voiceOnRef = useRef(true);
 
   useEffect(() => {
     try {
       setChatUnlocked(sessionStorage.getItem(CHAT_GATE_STORAGE) === "1");
+      const v = sessionStorage.getItem(CHAT_VOICE_STORAGE);
+      if (v === "0") {
+        setVoiceOn(false);
+        voiceOnRef.current = false;
+      }
     } catch {
       setChatUnlocked(false);
     }
@@ -66,37 +72,30 @@ export default function ChatPage() {
   }, []);
 
   useEffect(() => {
+    voiceOnRef.current = voiceOn;
+    try {
+      sessionStorage.setItem(CHAT_VOICE_STORAGE, voiceOn ? "1" : "0");
+    } catch {
+      /* ignore */
+    }
+  }, [voiceOn]);
+
+  useEffect(() => {
     return () => {
       cancelSpeechRef.current?.();
-      stopPersonaSpeech();
+      stopSofiaSpeech();
     };
   }, []);
 
-  const applyAssistantTurn = useCallback(
-    async (data: ChatApiResponse, id: ChatPersonaId, append: boolean) => {
-      if (!data.reply) return;
-
-      cancelSpeechRef.current?.();
-      if (append) {
-        setMessages((prev) => [...prev, { role: "assistant", content: data.reply! }]);
-      } else {
-        setMessages([{ role: "assistant", content: data.reply }]);
-      }
-      if (typeof data.interest === "number") setInterest(data.interest);
-      if (data.mood) setMood(data.mood);
-      if (data.won) setWon(true);
-      if (data.lost) setLost(true);
-
-      cancelSpeechRef.current = await playPersonaSpeech(data.reply, {
-        audioBase64: data.audioBase64,
-        audioMime: data.audioMime,
-        personaId: id,
-        onStart: () => setSpeaking(true),
-        onEnd: () => setSpeaking(false),
-      });
-    },
-    []
-  );
+  const playPersonaLine = useCallback(async (line: string, id: ChatPersonaId) => {
+    cancelSpeechRef.current?.();
+    cancelSpeechRef.current = await speakSofia(line, {
+      enabled: voiceOnRef.current,
+      personaId: id,
+      onStart: () => setSpeaking(true),
+      onEnd: () => setSpeaking(false),
+    });
+  }, []);
 
   useEffect(() => {
     const el = threadRef.current;
@@ -163,17 +162,19 @@ export default function ChatPage() {
         opening: true,
       });
 
-      if (!data?.reply) {
-        setLoading(false);
-        setBootstrapping(false);
-        return;
-      }
-
-      await applyAssistantTurn(data, id, false);
       setLoading(false);
       setBootstrapping(false);
+
+      if (!data?.reply) return;
+
+      setMessages([{ role: "assistant", content: data.reply }]);
+      if (typeof data.interest === "number") setInterest(data.interest);
+      if (data.mood) setMood(data.mood);
+      if (data.won) setWon(true);
+      if (data.lost) setLost(true);
+      void playPersonaLine(data.reply, id);
     },
-    [callChat, applyAssistantTurn]
+    [callChat, playPersonaLine]
   );
 
   const sendUserMessage = async () => {
@@ -192,13 +193,16 @@ export default function ChatPage() {
       messages: nextMessages,
     });
 
-    if (!data?.reply) {
-      setLoading(false);
-      return;
-    }
-
-    await applyAssistantTurn(data, personaId, true);
     setLoading(false);
+
+    if (!data?.reply) return;
+
+    setMessages((prev) => [...prev, { role: "assistant", content: data.reply! }]);
+    if (typeof data.interest === "number") setInterest(data.interest);
+    if (data.mood) setMood(data.mood);
+    if (data.won) setWon(true);
+    if (data.lost) setLost(true);
+    void playPersonaLine(data.reply, personaId);
   };
 
   const onComposerKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
@@ -206,21 +210,6 @@ export default function ChatPage() {
       e.preventDefault();
       void sendUserMessage();
     }
-  };
-
-  const backToPicker = () => {
-    if (loading || bootstrapping) return;
-    cancelSpeechRef.current?.();
-    stopPersonaSpeech();
-    setSpeaking(false);
-    setPersonaId(null);
-    setMessages([]);
-    setInterest(0);
-    setMood("curious");
-    setWon(false);
-    setLost(false);
-    setError("");
-    setInput("");
   };
 
   const showGateOverlay = !gateReady || !chatUnlocked;
@@ -254,25 +243,13 @@ export default function ChatPage() {
 
         <header className="chat-header">
           <p className="chat-eyebrow">Joe&apos;s Casino · VIP Lounge</p>
-          <div className="chat-title-row">
-            {personaId ? (
-              <button
-                type="button"
-                className="chat-back-btn"
-                onClick={backToPicker}
-                disabled={loading || bootstrapping}
-                aria-label="Back to character list"
-              >
-                &larr;
-              </button>
-            ) : (
-              <span className="chat-back-spacer" aria-hidden="true" />
-            )}
-            <h1 className="chat-title">{persona?.name ?? "VIP Lounge"}</h1>
-            <span className="chat-back-spacer" aria-hidden="true" />
-          </div>
+          <h1 className="chat-title">{persona?.name ?? "VIP Lounge"}</h1>
           {!personaId ? (
             <p className="chat-sub">Pick who you want to take home tonight.</p>
+          ) : persona ? (
+            <p className="chat-sub">
+              {persona.label} · {persona.tagline}
+            </p>
           ) : null}
         </header>
 
@@ -324,6 +301,21 @@ export default function ChatPage() {
                   />
                   <div className="chat-avatar-photo-vignette" aria-hidden="true" />
                 </div>
+                <button
+                  type="button"
+                  className={`chat-voice-toggle${voiceOn ? " chat-voice-toggle--on" : ""}`}
+                  onClick={() => {
+                    if (voiceOn) {
+                      cancelSpeechRef.current?.();
+                      stopSofiaSpeech();
+                      setSpeaking(false);
+                    }
+                    setVoiceOn((v) => !v);
+                  }}
+                  aria-pressed={voiceOn}
+                >
+                  {voiceOn ? "Voice on" : "Voice off"}
+                </button>
                 <div className="chat-meter">
                   <div className="chat-meter-head">
                     <span>Attraction</span>

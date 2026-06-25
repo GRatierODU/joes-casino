@@ -8,7 +8,6 @@ import {
   type ChatMood,
   type ChatPersonaId,
 } from "@/lib/chatPersonas";
-import { synthesizeForPersona } from "@/lib/personaTts";
 
 export const runtime = "nodejs";
 
@@ -108,27 +107,12 @@ Return structured output only.`,
       return NextResponse.json({ error: "No response from model." }, { status: 502 });
     }
 
-    const reply = output.reply.trim();
     const interest = clampInterest(priorInterest + output.interestDelta);
     const won = interest >= persona.winThreshold;
     const lost = !opening && interest <= 8 && parsed.messages.length >= 4;
 
-    let audioBase64: string | null = null;
-    let audioMime: "audio/mpeg" | "audio/wav" | null = null;
-    try {
-      const audio = await synthesizeForPersona(persona, reply);
-      if (audio) {
-        audioBase64 = audio.audioBase64;
-        audioMime = audio.audioMime;
-      }
-    } catch (e) {
-      console.error("chat tts error", e);
-    }
-
     return NextResponse.json({
-      reply,
-      audioBase64,
-      audioMime,
+      reply: output.reply.trim(),
       interest,
       interestDelta: output.interestDelta,
       mood: output.mood as ChatMood,

@@ -1,6 +1,7 @@
-import { CHAT_PERSONAS, type ChatPersonaId } from "./chatPersonas";
+import type { ChatPersonaId } from "./chatPersonas";
 
-export type PlayPersonaSpeechOptions = {
+export type SpeakSofiaOptions = {
+  enabled?: boolean;
   personaId?: ChatPersonaId | null;
   onStart?: () => void;
   onEnd?: () => void;
@@ -27,17 +28,8 @@ function loadVoices(): Promise<SpeechSynthesisVoice[]> {
   return voicesReady;
 }
 
-function pickPersonaVoice(
-  voices: SpeechSynthesisVoice[],
-  personaId?: ChatPersonaId | null
-): SpeechSynthesisVoice | undefined {
+function pickFemaleVoice(voices: SpeechSynthesisVoice[]): SpeechSynthesisVoice | undefined {
   const en = voices.filter((v) => v.lang.toLowerCase().startsWith("en"));
-  const persona = personaId ? CHAT_PERSONAS[personaId] : null;
-  if (persona?.browserVoiceHint) {
-    const hint = new RegExp(persona.browserVoiceHint, "i");
-    const match = en.find((v) => hint.test(v.name));
-    if (match) return match;
-  }
   const prefer =
     /zira|samantha|victoria|jenny|aria|susan|karen|moira|tessa|female|natasha/i;
   return en.find((v) => prefer.test(v.name)) ?? en[0] ?? voices[0];
@@ -45,7 +37,7 @@ function pickPersonaVoice(
 
 function speakWithBrowser(
   text: string,
-  opts: PlayPersonaSpeechOptions
+  opts: SpeakSofiaOptions
 ): Promise<() => void> {
   return loadVoices().then((voices) => {
     if (!window.speechSynthesis) {
@@ -55,7 +47,7 @@ function speakWithBrowser(
 
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(text);
-    const voice = pickPersonaVoice(voices, opts.personaId);
+    const voice = pickFemaleVoice(voices);
     if (voice) utterance.voice = voice;
     utterance.rate = 0.96;
     utterance.pitch = 1.04;
@@ -81,82 +73,74 @@ function speakWithBrowser(
   });
 }
 
-function playAudioBase64(
-  base64: string,
-  mime: string,
-  opts: PlayPersonaSpeechOptions
-): Promise<() => void> {
-  return new Promise((resolve, reject) => {
-    const binary = atob(base64);
-    const bytes = new Uint8Array(binary.length);
-    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-    const blob = new Blob([bytes], { type: mime });
-    const url = URL.createObjectURL(blob);
-    const audio = new Audio(url);
-    let ended = false;
-
-    const finish = () => {
-      if (ended) return;
-      ended = true;
-      URL.revokeObjectURL(url);
-      opts.onEnd?.();
-    };
-
-    const cancel = () => {
-      audio.pause();
-      audio.currentTime = 0;
-      finish();
-    };
-
-    audio.onended = finish;
-    audio.onerror = () => {
-      finish();
-      reject(new Error("audio playback failed"));
-    };
-    opts.onStart?.();
-
-    audio.play().then(() => resolve(cancel)).catch(reject);
+async function speakWithGemini(
+  text: string,
+  opts: SpeakSofiaOptions
+): Promise<(() => void) | null> {
+  const res = await fetch("/api/chat/tts", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text, personaId: opts.personaId ?? undefined }),
   });
+  if (!res.ok) return null;
+
+  const blob = await res.blob();
+  if (!blob.size) return null;
+
+  const url = URL.createObjectURL(blob);
+  const audio = new Audio(url);
+  let ended = false;
+
+  const finish = () => {
+    if (ended) return;
+    ended = true;
+    URL.revokeObjectURL(url);
+    opts.onEnd?.();
+  };
+
+  const cancel = () => {
+    audio.pause();
+    audio.currentTime = 0;
+    finish();
+  };
+
+  audio.onended = finish;
+  audio.onerror = finish;
+
+  opts.onStart?.();
+  try {
+    await audio.play();
+  } catch {
+    finish();
+    return null;
+  }
+
+  return cancel;
 }
 
-/** Play pre-generated audio (from chat API) or fall back to browser TTS. */
-export async function playPersonaSpeech(
+/** Speak Sofia's line. Tries Gemini TTS first, then browser voices. Returns cancel fn. */
+export async function speakSofia(
   text: string,
-  opts: PlayPersonaSpeechOptions & {
-    audioBase64?: string | null;
-    audioMime?: string | null;
-    /** @deprecated use audioBase64 */
-    audioWavBase64?: string | null;
-  } = {}
+  opts: SpeakSofiaOptions = {}
 ): Promise<() => void> {
   const trimmed = text.trim();
-  if (!trimmed) {
+  if (!trimmed || opts.enabled === false) {
     opts.onEnd?.();
     return () => {};
   }
 
-  stopPersonaSpeech();
-
-  const base64 = opts.audioBase64 ?? opts.audioWavBase64;
-  const mime = opts.audioMime ?? (opts.audioWavBase64 ? "audio/wav" : null);
-
-  if (base64 && mime) {
-    try {
-      return await playAudioBase64(base64, mime, opts);
-    } catch {
-      /* fall through to browser */
-    }
+  try {
+    const geminiCancel = await speakWithGemini(trimmed, opts);
+    if (geminiCancel) return geminiCancel;
+  } catch {
+    /* fall through */
   }
 
   return speakWithBrowser(trimmed, opts);
 }
 
-export function stopPersonaSpeech(): void {
+export function stopSofiaSpeech(): void {
   if (typeof window !== "undefined" && window.speechSynthesis) {
     window.speechSynthesis.cancel();
   }
 }
-
-/** @deprecated use playPersonaSpeech */
-export const speakSofia = playPersonaSpeech;
-export const stopSofiaSpeech = stopPersonaSpeech;
