@@ -5,7 +5,7 @@ export type ChatMood = "cold" | "curious" | "warm" | "flirty" | "smitten";
 export const KACEY = {
   name: "Kacey",
   portrait: "/chat/kacey-j-portrait.png",
-  ttsVoice: "Aoede",
+  ttsVoice: "Leda",
 } as const;
 
 export type ChatPersona = {
