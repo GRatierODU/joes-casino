@@ -202,7 +202,16 @@ export default function ChatPage() {
       setLost(false);
       setError("");
 
-      if (p.mode === "coach") return;
+      if (p.mode === "coach") {
+        setMessages([
+          {
+            role: "assistant",
+            content:
+              "Post a hand or spot — I'll tell you if the line was good, bad, or marginal.",
+          },
+        ]);
+        return;
+      }
 
       setBootstrapping(true);
       setLoading(true);

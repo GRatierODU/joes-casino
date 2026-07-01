@@ -5,13 +5,13 @@ import { z } from "zod";
 import {
   clampInterest,
   getPersona,
+  type ChatPersona,
   type ChatMood,
   type ChatPersonaId,
   type CoachVerdict,
 } from "@/lib/chatPersonas";
 
 export const runtime = "nodejs";
-export const maxDuration = 30;
 
 const GEMINI_SAFETY_SETTINGS = [
   { category: "HARM_CATEGORY_HARASSMENT" as const, threshold: "BLOCK_ONLY_HIGH" as const },
@@ -32,12 +32,11 @@ const bodySchema = z.object({
   opening: z.boolean().optional(),
 });
 
-const seductionReplySchema = (maxDelta: number) =>
-  z.object({
-    reply: z.string().min(1).max(1200),
-    interestDelta: z.number().min(-18).max(maxDelta),
-    mood: z.enum(["cold", "curious", "warm", "flirty", "smitten"]),
-  });
+const seductionReplySchema = z.object({
+  reply: z.string().min(1).max(1200),
+  interestDelta: z.number().min(-18).max(18),
+  mood: z.enum(["cold", "curious", "warm", "flirty", "smitten"]),
+});
 
 const coachReplySchema = z.object({
   reply: z.string().min(1).max(800),
@@ -54,8 +53,20 @@ function getModel() {
     );
   }
   const google = createGoogleGenerativeAI({ apiKey });
-  // gemini-2.0-flash returns 404 on many API keys; 2.5-flash is the known-good default.
   return google(process.env.GEMINI_CHAT_MODEL?.trim() || "gemini-2.5-flash");
+}
+
+function clampInterestDelta(raw: number, persona: ChatPersona): number {
+  return Math.max(-18, Math.min(persona.maxInterestDelta, Math.round(raw)));
+}
+
+async function generateWithRetry(options: Parameters<typeof generateText>[0]) {
+  try {
+    return await generateText(options);
+  } catch (firstError) {
+    console.warn("chat generate retry after error", firstError);
+    return await generateText(options);
+  }
 }
 
 export async function POST(request: Request) {
@@ -86,11 +97,10 @@ export async function POST(request: Request) {
     }));
 
     try {
-      const { output } = await generateText({
+      const { output } = await generateWithRetry({
         model,
         system: `${persona.systemPrompt}\nReturn structured output only.`,
         messages: modelMessages,
-        maxOutputTokens: 256,
         output: Output.object({ schema: coachReplySchema }),
         providerOptions: {
           google: {
@@ -133,15 +143,14 @@ export async function POST(request: Request) {
       }));
 
   try {
-    const { output } = await generateText({
+    const { output } = await generateWithRetry({
       model,
       system: `${persona.systemPrompt}
 
 Current attraction (0–100): ${priorInterest}. If attraction is at or above ${persona.winThreshold}, ${persona.name} agrees to leave with the player and go home together tonight (say yes in character—suggestive, not graphic). Below that, ${persona.subjectPronoun === "he" ? "he" : "she"} keeps flirting, deflecting, or holding back depending on persona.
 Return structured output only.`,
       messages: modelMessages,
-      maxOutputTokens: 320,
-      output: Output.object({ schema: seductionReplySchema(persona.maxInterestDelta) }),
+      output: Output.object({ schema: seductionReplySchema }),
       providerOptions: {
         google: {
           structuredOutputs: true,
@@ -154,14 +163,15 @@ Return structured output only.`,
       return NextResponse.json({ error: "No response from model." }, { status: 502 });
     }
 
-    const interest = clampInterest(priorInterest + output.interestDelta);
+    const interestDelta = clampInterestDelta(output.interestDelta, persona);
+    const interest = clampInterest(priorInterest + interestDelta);
     const won = interest >= persona.winThreshold;
     const lost = !opening && interest <= 8 && parsed.messages.length >= 4;
 
     return NextResponse.json({
       reply: output.reply.trim(),
       interest,
-      interestDelta: output.interestDelta,
+      interestDelta,
       mood: output.mood as ChatMood,
       won,
       lost,
