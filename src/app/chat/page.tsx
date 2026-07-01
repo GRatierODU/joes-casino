@@ -396,7 +396,9 @@ export default function ChatPage() {
                     sizes="(max-width: 900px) 100vw, 340px"
                     className={`chat-avatar-photo-img${
                       personaId === "dan" ? " chat-avatar-photo-img--dan" : ""
-                    }${personaId === "better-joe" ? " chat-avatar-photo-img--better-joe" : ""}`}
+                    }${personaId === "better-joe" ? " chat-avatar-photo-img--better-joe" : ""}${
+                      personaId === "yoshua" ? " chat-avatar-photo-img--yoshua" : ""
+                    }`}
                     priority
                   />
                   <div className="chat-avatar-photo-vignette" aria-hidden="true" />

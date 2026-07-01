@@ -2937,6 +2937,10 @@ body {
   object-position: center 18%;
 }
 
+.chat-avatar-photo-img--yoshua {
+  object-position: center 20%;
+}
+
 .chat-meter--verdict {
   text-align: center;
 }

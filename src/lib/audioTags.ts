@@ -59,6 +59,31 @@ Accent: General American, college-aged.
 ${transcript}`;
 }
 
+function buildYoshuaTtsPrompt(transcript: string, voiceName: string): string {
+  return `Synthesize speech only. Do not read the directions aloud.
+
+# AUDIO PROFILE: Yoshua
+## "Sig Ep Gym Tight Player"
+
+## THE SCENE: Joe's Casino VIP Lounge
+Late night poker. Yoshua (Joshua) is 22, Sigma Phi Epsilon — disciplined, gym-focused, a little dry and judgmental. Tight at the table, complains about roommates and the kitchen. Casual American English.
+
+### DIRECTOR'S NOTES
+Style:
+* Young male, measured and confident — not trash-talk loud like Joe; more dry and smug.
+* Matter-of-fact when talking gym, money, or cleanliness.
+* Sighs and scoffs only when transcript tags ask for them.
+
+Pace: Even, controlled. Brief pauses when he's unimpressed.
+
+Voice: Use the "${voiceName}" prebuilt voice.
+
+Accent: General American, early twenties.
+
+#### TRANSCRIPT
+${transcript}`;
+}
+
 /** Build a Gemini TTS director prompt (audio tags + scene context) for a persona. */
 export function buildPersonaTtsPrompt(
   personaId: ChatPersonaId | undefined,
@@ -67,6 +92,9 @@ export function buildPersonaTtsPrompt(
 ): string {
   if (personaId === "better-joe") {
     return buildBetterJoeTtsPrompt(transcript, voiceName);
+  }
+  if (personaId === "yoshua") {
+    return buildYoshuaTtsPrompt(transcript, voiceName);
   }
   return buildKaceyTtsPrompt(transcript, voiceName);
 }

@@ -26,7 +26,7 @@ const messageSchema = z.object({
 });
 
 const bodySchema = z.object({
-  personaId: z.enum(["kacey", "dan", "better-joe"]).optional(),
+  personaId: z.enum(["kacey", "dan", "better-joe", "yoshua"]).optional(),
   interest: z.number().min(0).max(100),
   messages: z.array(messageSchema).max(80),
   opening: z.boolean().optional(),

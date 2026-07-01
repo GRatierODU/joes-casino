@@ -80,11 +80,12 @@ function speakWithBrowser(
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(displayText);
     const isKacey = opts.personaId === "kacey";
-    const isJoe = opts.personaId === "better-joe";
-    const voice = isJoe ? pickMaleVoice(voices) : pickFemaleVoice(voices);
+    const isMale =
+      opts.personaId === "better-joe" || opts.personaId === "yoshua";
+    const voice = isMale ? pickMaleVoice(voices) : pickFemaleVoice(voices);
     if (voice) utterance.voice = voice;
     utterance.rate = isKacey ? 0.92 : 0.96;
-    utterance.pitch = isKacey ? 0.9 : isJoe ? 0.98 : 1.04;
+    utterance.pitch = isKacey ? 0.9 : isMale ? 0.98 : 1.04;
     utterance.volume = isKacey ? 0.75 : 1;
     utterance.lang = voice?.lang ?? "en-US";
 
