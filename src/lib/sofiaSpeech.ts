@@ -12,6 +12,8 @@ export type SpeakSofiaOptions = {
 };
 
 let voicesReady: Promise<SpeechSynthesisVoice[]> | null = null;
+let activeAbort: AbortController | null = null;
+let activeCancel: (() => void) | null = null;
 
 /** Split text into word tokens (word + trailing whitespace). */
 export function splitSpeechTokens(text: string): string[] {
@@ -54,12 +56,21 @@ function pickFemaleVoice(voices: SpeechSynthesisVoice[]): SpeechSynthesisVoice |
   return en.find((v) => prefer.test(v.name)) ?? en[0] ?? voices[0];
 }
 
+function pickMaleVoice(voices: SpeechSynthesisVoice[]): SpeechSynthesisVoice | undefined {
+  const en = voices.filter((v) => v.lang.toLowerCase().startsWith("en"));
+  const prefer = /david|mark|aaron|guy|james|daniel|paul|male|fred|richard/i;
+  const male = en.filter((v) => !/zira|samantha|victoria|jenny|aria|susan|karen|moira|tessa|female|natasha/i.test(v.name));
+  return male.find((v) => prefer.test(v.name)) ?? male[0] ?? en[0] ?? voices[0];
+}
+
 function speakWithBrowser(
-  speechText: string,
   displayText: string,
-  opts: SpeakSofiaOptions
+  opts: SpeakSofiaOptions,
+  signal?: AbortSignal
 ): Promise<() => void> {
   return loadVoices().then((voices) => {
+    if (signal?.aborted) return () => {};
+
     if (!window.speechSynthesis) {
       opts.onReveal?.(displayText);
       opts.onEnd?.();
@@ -68,21 +79,34 @@ function speakWithBrowser(
 
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(displayText);
-    const voice = pickFemaleVoice(voices);
+    const isKacey = opts.personaId === "kacey";
+    const isJoe = opts.personaId === "better-joe";
+    const voice = isJoe ? pickMaleVoice(voices) : pickFemaleVoice(voices);
     if (voice) utterance.voice = voice;
-    utterance.rate = 0.96;
-    utterance.pitch = 1.04;
+    utterance.rate = isKacey ? 0.92 : 0.96;
+    utterance.pitch = isKacey ? 0.9 : isJoe ? 0.98 : 1.04;
+    utterance.volume = isKacey ? 0.75 : 1;
     utterance.lang = voice?.lang ?? "en-US";
 
     let ended = false;
     const finish = () => {
       if (ended) return;
       ended = true;
+      if (activeCancel === cancel) activeCancel = null;
       opts.onReveal?.(displayText);
       opts.onEnd?.();
     };
 
+    const cancel = () => {
+      window.speechSynthesis.cancel();
+      finish();
+    };
+
     utterance.onstart = () => {
+      if (signal?.aborted) {
+        cancel();
+        return;
+      }
       opts.onStart?.();
       opts.onReveal?.("");
     };
@@ -91,35 +115,44 @@ function speakWithBrowser(
       const end = ev.charIndex + (ev.charLength ?? 0);
       opts.onReveal?.(displayText.slice(0, end));
     };
-    utterance.onend = finish;
-    utterance.onerror = finish;
-
-    window.speechSynthesis.speak(utterance);
-
-    return () => {
-      window.speechSynthesis.cancel();
+    utterance.onend = () => {
+      if (activeCancel === cancel) activeCancel = null;
       finish();
     };
+    utterance.onerror = () => {
+      if (activeCancel === cancel) activeCancel = null;
+      finish();
+    };
+
+    activeCancel = cancel;
+    window.speechSynthesis.speak(utterance);
+
+    return cancel;
   });
 }
 
 async function speakWithGemini(
   speechText: string,
   displayText: string,
-  opts: SpeakSofiaOptions
+  opts: SpeakSofiaOptions,
+  signal?: AbortSignal
 ): Promise<(() => void) | null> {
+  if (signal?.aborted) return null;
+
   const res = await fetch("/api/chat/tts", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ text: speechText, personaId: opts.personaId ?? undefined }),
+    signal,
   });
-  if (!res.ok) return null;
+  if (!res.ok || signal?.aborted) return null;
 
   const blob = await res.blob();
-  if (!blob.size) return null;
+  if (!blob.size || signal?.aborted) return null;
 
   const url = URL.createObjectURL(blob);
   const audio = new Audio(url);
+  audio.volume = opts.personaId === "kacey" ? 0.72 : 1;
   let ended = false;
   let rafId = 0;
   const wordCount = splitSpeechTokens(displayText).length;
@@ -146,6 +179,7 @@ async function speakWithGemini(
     audio.removeEventListener("ended", finish);
     audio.removeEventListener("error", finish);
     URL.revokeObjectURL(url);
+    if (activeCancel === cancel) activeCancel = null;
     opts.onReveal?.(displayText);
     opts.onEnd?.();
   };
@@ -164,7 +198,16 @@ async function speakWithGemini(
   opts.onReveal?.("");
 
   try {
+    if (signal?.aborted) {
+      finish();
+      return null;
+    }
     await audio.play();
+    if (signal?.aborted) {
+      cancel();
+      return null;
+    }
+    activeCancel = cancel;
     rafId = requestAnimationFrame(tick);
   } catch {
     finish();
@@ -172,6 +215,16 @@ async function speakWithGemini(
   }
 
   return cancel;
+}
+
+function abortActiveSpeech(): void {
+  activeAbort?.abort();
+  activeAbort = null;
+  activeCancel?.();
+  activeCancel = null;
+  if (typeof window !== "undefined" && window.speechSynthesis) {
+    window.speechSynthesis.cancel();
+  }
 }
 
 /** Speak a line. Tries Gemini TTS first, then browser voices. Returns cancel fn. */
@@ -187,18 +240,32 @@ export async function speakSofia(
     return () => {};
   }
 
+  abortActiveSpeech();
+  const controller = new AbortController();
+  activeAbort = controller;
+  const noop = () => {};
+
   try {
-    const geminiCancel = await speakWithGemini(trimmed, displayText, opts);
+    const geminiCancel = await speakWithGemini(trimmed, displayText, opts, controller.signal);
+    if (activeAbort === controller) activeAbort = null;
+    if (controller.signal.aborted) {
+      geminiCancel?.();
+      return noop;
+    }
     if (geminiCancel) return geminiCancel;
   } catch {
-    /* fall through */
+    if (activeAbort === controller) activeAbort = null;
+    if (controller.signal.aborted) return noop;
   }
 
-  return speakWithBrowser(trimmed, displayText, opts);
+  if (controller.signal.aborted) return noop;
+
+  return (
+    (await speakWithBrowser(displayText, opts, controller.signal)) ??
+    noop
+  );
 }
 
 export function stopSofiaSpeech(): void {
-  if (typeof window !== "undefined" && window.speechSynthesis) {
-    window.speechSynthesis.cancel();
-  }
+  abortActiveSpeech();
 }

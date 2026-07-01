@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { buildKaceyTtsPrompt } from "@/lib/audioTags";
+import { buildPersonaTtsPrompt } from "@/lib/audioTags";
 import { getPersona, type ChatPersonaId } from "@/lib/chatPersonas";
 import { parsePcmSampleRate, pcm16ToWav } from "@/lib/pcmToWav";
 
@@ -8,7 +8,7 @@ export const runtime = "nodejs";
 
 const bodySchema = z.object({
   text: z.string().min(1).max(1200),
-  personaId: z.enum(["easy"]).optional(),
+  personaId: z.enum(["kacey", "dan", "better-joe"]).optional(),
 });
 
 const TTS_MODEL =
@@ -59,7 +59,7 @@ export async function POST(request: Request) {
             role: "user",
             parts: [
               {
-                text: buildKaceyTtsPrompt(text, voiceName),
+                text: buildPersonaTtsPrompt(personaId, text, voiceName),
               },
             ],
           },

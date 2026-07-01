@@ -2911,6 +2911,72 @@ body {
   }
 }
 
+.chat-back-picker {
+  align-self: flex-start;
+  margin-bottom: 0.5rem;
+  padding: 0.35rem 0.65rem;
+  font-size: 0.78rem;
+  color: #c8c2b8;
+  background: rgba(12, 10, 14, 0.6);
+  border: 1px solid rgba(212, 175, 95, 0.28);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+
+.chat-back-picker:hover {
+  color: #f0e8dc;
+  border-color: rgba(212, 175, 95, 0.55);
+}
+
+.chat-avatar-photo-img--dan {
+  object-position: center 12%;
+}
+
+.chat-avatar-photo-img--better-joe {
+  object-position: center 18%;
+}
+
+.chat-meter--verdict {
+  text-align: center;
+}
+
+.chat-verdict {
+  margin: 0.35rem 0 0;
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.chat-verdict--terrible {
+  color: #e85d5d;
+}
+
+.chat-verdict--mistake {
+  color: #e89a5d;
+}
+
+.chat-verdict--marginal {
+  color: var(--gold);
+}
+
+.chat-verdict--good {
+  color: #7dd4a0;
+}
+
+.chat-verdict--great {
+  color: #5de8a8;
+}
+
+.chat-avatar-photo--verdict-terrible .chat-avatar-photo-img {
+  filter: saturate(0.85) hue-rotate(-8deg);
+}
+
+.chat-avatar-photo--verdict-good .chat-avatar-photo-img,
+.chat-avatar-photo--verdict-great .chat-avatar-photo-img {
+  filter: saturate(1.05) brightness(1.03);
+}
+
 .chat-persona-card {
   display: flex;
   flex-direction: column;
