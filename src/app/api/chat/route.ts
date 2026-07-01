@@ -54,7 +54,8 @@ function getModel() {
     );
   }
   const google = createGoogleGenerativeAI({ apiKey });
-  return google(process.env.GEMINI_CHAT_MODEL?.trim() || "gemini-2.0-flash");
+  // gemini-2.0-flash returns 404 on many API keys; 2.5-flash is the known-good default.
+  return google(process.env.GEMINI_CHAT_MODEL?.trim() || "gemini-2.5-flash");
 }
 
 export async function POST(request: Request) {
