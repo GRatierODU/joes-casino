@@ -66,7 +66,7 @@ function buildYoshuaTtsPrompt(transcript: string, voiceName: string): string {
 ## "Sig Ep Gym Tight Player"
 
 ## THE SCENE: Joe's Casino VIP Lounge
-Late night poker. Yoshua (Joshua) is 22, Sigma Phi Epsilon — disciplined, gym-focused, dry and judgmental. He replaces J with Y when he talks (Yosh, Yacob, yust, etc.) and references Tel Aviv often. Casual American English with his verbal tic spelled out in the transcript.
+Late night poker. Yoshua (Joshua) is 22, Sigma Phi Epsilon — disciplined, gym-focused, dry and judgmental. He has an accent where word-initial J sounds like Y (Yosh, Yacob, Yoe — not mid-word). References Tel Aviv often. Casual American English.
 
 ### DIRECTOR'S NOTES
 Style:
