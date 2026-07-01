@@ -7,6 +7,7 @@ import {
   getPersona,
   type ChatMood,
   type ChatPersonaId,
+  type CoachVerdict,
 } from "@/lib/chatPersonas";
 
 export const runtime = "nodejs";
@@ -24,16 +25,22 @@ const messageSchema = z.object({
 });
 
 const bodySchema = z.object({
-  personaId: z.enum(["easy", "hard"]).optional(),
+  personaId: z.enum(["kacey", "dan", "better-joe"]).optional(),
   interest: z.number().min(0).max(100),
   messages: z.array(messageSchema).max(80),
   opening: z.boolean().optional(),
 });
 
-const replySchema = z.object({
-  reply: z.string().min(1).max(1200),
-  interestDelta: z.number().min(-18).max(18),
-  mood: z.enum(["cold", "curious", "warm", "flirty", "smitten"]),
+const seductionReplySchema = (maxDelta: number) =>
+  z.object({
+    reply: z.string().min(1).max(1200),
+    interestDelta: z.number().min(-18).max(maxDelta),
+    mood: z.enum(["cold", "curious", "warm", "flirty", "smitten"]),
+  });
+
+const coachReplySchema = z.object({
+  reply: z.string().min(1).max(800),
+  verdict: z.enum(["terrible", "mistake", "marginal", "good", "great"]),
 });
 
 function getModel() {
@@ -69,6 +76,45 @@ export async function POST(request: Request) {
   }
 
   const opening = parsed.opening === true || parsed.messages.length === 0;
+
+  if (persona.mode === "coach") {
+    const modelMessages = parsed.messages.map((m) => ({
+      role: m.role,
+      content: m.content,
+    }));
+
+    try {
+      const { output } = await generateText({
+        model,
+        system: `${persona.systemPrompt}\nReturn structured output only.`,
+        messages: modelMessages,
+        output: Output.object({ schema: coachReplySchema }),
+        providerOptions: {
+          google: {
+            structuredOutputs: true,
+            safetySettings: GEMINI_SAFETY_SETTINGS,
+          },
+        },
+      });
+
+      if (!output) {
+        return NextResponse.json({ error: "No response from model." }, { status: 502 });
+      }
+
+      return NextResponse.json({
+        reply: output.reply.trim(),
+        verdict: output.verdict as CoachVerdict,
+        personaId: persona.id as ChatPersonaId,
+      });
+    } catch (e) {
+      console.error("chat api error", e);
+      return NextResponse.json(
+        { error: "Could not reach Gemini. Check your API key and quota." },
+        { status: 502 }
+      );
+    }
+  }
+
   const priorInterest = clampInterest(parsed.interest);
 
   const modelMessages = opening
@@ -91,7 +137,7 @@ export async function POST(request: Request) {
 Current attraction (0–100): ${priorInterest}. If attraction is at or above ${persona.winThreshold}, ${persona.name} agrees to leave with the player and go home together tonight (say yes in character—suggestive, not graphic). Below that, ${persona.subjectPronoun === "he" ? "he" : "she"} keeps flirting, deflecting, or holding back depending on persona.
 Return structured output only.`,
       messages: modelMessages,
-      output: Output.object({ schema: replySchema }),
+      output: Output.object({ schema: seductionReplySchema(persona.maxInterestDelta) }),
       providerOptions: {
         google: {
           structuredOutputs: true,

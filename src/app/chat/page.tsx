@@ -14,15 +14,17 @@ import {
   CHAT_PERSONAS,
   clampInterest,
   moodLabel,
+  verdictLabel,
   type ChatMood,
   type ChatPersona,
   type ChatPersonaId,
+  type CoachVerdict,
 } from "@/lib/chatPersonas";
 import { stripAudioTags } from "@/lib/audioTags";
 import { speakSofia, stopSofiaSpeech } from "@/lib/sofiaSpeech";
 
 const CHAT_GATE_STORAGE = "joes-chat-gate";
-const CHAT_GATE_PASSWORD = "joescasino";
+const CHAT_GATE_PASSWORDS = ["joescasino", "viplounge"];
 
 type ChatMessage = { role: "user" | "assistant"; content: string };
 
@@ -30,6 +32,7 @@ type ChatApiResponse = {
   reply?: string;
   interest?: number;
   mood?: ChatMood;
+  verdict?: CoachVerdict;
   won?: boolean;
   lost?: boolean;
   error?: string;
@@ -37,31 +40,14 @@ type ChatApiResponse = {
 
 function winBanner(persona: ChatPersona): string {
   return persona.subjectPronoun === "he"
-    ? "He's coming home with you. You win."
-    : "She's coming home with you. You win.";
+    ? "He said he'd leave with you tonight."
+    : "She said she'd leave with you tonight.";
 }
 
 function loseBanner(persona: ChatPersona): string {
   return persona.subjectPronoun === "he"
     ? "He's not going home with you tonight."
     : "She's not going home with you tonight.";
-}
-
-function composerPlaceholder(persona: ChatPersona, won: boolean, lost: boolean): string {
-  if (won) {
-    return persona.subjectPronoun === "he"
-      ? "He said yes — keep the night going…"
-      : "She said yes — keep the night going…";
-  }
-  if (lost) {
-    return persona.subjectPronoun === "he"
-      ? "He shut it down for tonight…"
-      : "She shut it down for tonight…";
-  }
-  if (persona.id === "hard") {
-    return "Talk poker. Trash-talk. Flirt. Close the deal…";
-  }
-  return "Flirt. Build tension. Close the deal…";
 }
 
 export default function ChatPage() {
@@ -74,6 +60,7 @@ export default function ChatPage() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [interest, setInterest] = useState(0);
   const [mood, setMood] = useState<ChatMood>("curious");
+  const [verdict, setVerdict] = useState<CoachVerdict | null>(null);
   const [won, setWon] = useState(false);
   const [lost, setLost] = useState(false);
   const [input, setInput] = useState("");
@@ -89,8 +76,10 @@ export default function ChatPage() {
   const threadRef = useRef<HTMLDivElement>(null);
   const cancelSpeechRef = useRef<(() => void) | null>(null);
   const personaIdRef = useRef<ChatPersonaId | null>(null);
+  const sessionGenRef = useRef(0);
 
   const persona = personaId ? CHAT_PERSONAS[personaId] : null;
+  const isCoach = persona?.mode === "coach";
 
   useEffect(() => {
     personaIdRef.current = personaId;
@@ -105,29 +94,38 @@ export default function ChatPage() {
     setGateReady(true);
   }, []);
 
-  useEffect(() => {
-    return () => {
-      cancelSpeechRef.current?.();
-      stopSofiaSpeech();
-    };
-  }, []);
-
-  const playPersonaLine = useCallback(async (line: string, messageIndex: number) => {
-    const id = personaIdRef.current;
-    if (!id) return;
-
+  const resetSession = useCallback(() => {
+    sessionGenRef.current += 1;
     cancelSpeechRef.current?.();
-    setSpeakingReveal({ messageIndex, text: "" });
-    cancelSpeechRef.current = await speakSofia(line, {
-      personaId: id,
-      onStart: () => setSpeaking(true),
-      onReveal: (text) => setSpeakingReveal({ messageIndex, text }),
-      onEnd: () => {
-        setSpeaking(false);
-        setSpeakingReveal(null);
-      },
-    });
+    cancelSpeechRef.current = null;
+    stopSofiaSpeech();
+    setSpeaking(false);
+    setSpeakingReveal(null);
   }, []);
+
+  useEffect(() => {
+    return () => resetSession();
+  }, [resetSession]);
+
+  const playPersonaLine = useCallback(
+    async (line: string, messageIndex: number, id: ChatPersonaId) => {
+      const p = CHAT_PERSONAS[id];
+      if (!p.ttsEnabled) return;
+
+      cancelSpeechRef.current?.();
+      setSpeakingReveal({ messageIndex, text: "" });
+      cancelSpeechRef.current = await speakSofia(line, {
+        personaId: id,
+        onStart: () => setSpeaking(true),
+        onReveal: (text) => setSpeakingReveal({ messageIndex, text }),
+        onEnd: () => {
+          setSpeaking(false);
+          setSpeakingReveal(null);
+        },
+      });
+    },
+    []
+  );
 
   useEffect(() => {
     const el = threadRef.current;
@@ -137,8 +135,8 @@ export default function ChatPage() {
 
   const handleGateSubmit = (e: FormEvent) => {
     e.preventDefault();
-    const v = gatePw.trim();
-    if (v === CHAT_GATE_PASSWORD) {
+    const v = gatePw.trim().toLowerCase();
+    if (CHAT_GATE_PASSWORDS.includes(v)) {
       try {
         sessionStorage.setItem(CHAT_GATE_STORAGE, "1");
       } catch {
@@ -176,14 +174,21 @@ export default function ChatPage() {
 
   const startPersona = useCallback(
     async (id: ChatPersonaId) => {
+      const gen = sessionGenRef.current;
       const p = CHAT_PERSONAS[id];
+
+      resetSession();
       setPersonaId(id);
       setMessages([]);
       setInterest(p.startInterest);
       setMood("curious");
+      setVerdict(null);
       setWon(false);
       setLost(false);
       setError("");
+
+      if (p.mode === "coach") return;
+
       setBootstrapping(true);
       setLoading(true);
 
@@ -193,6 +198,8 @@ export default function ChatPage() {
         messages: [],
         opening: true,
       });
+
+      if (gen !== sessionGenRef.current) return;
 
       setLoading(false);
       setBootstrapping(false);
@@ -204,15 +211,25 @@ export default function ChatPage() {
       if (data.mood) setMood(data.mood);
       if (data.won) setWon(true);
       if (data.lost) setLost(true);
-      void playPersonaLine(data.reply, 0);
+      void playPersonaLine(data.reply, 0, id);
     },
-    [callChat, playPersonaLine]
+    [callChat, playPersonaLine, resetSession]
   );
+
+  const backToPicker = () => {
+    resetSession();
+    setPersonaId(null);
+    setMessages([]);
+    setError("");
+    setBootstrapping(false);
+    setLoading(false);
+  };
 
   const sendUserMessage = async () => {
     const text = input.trim();
-    if (!text || !personaId || loading || won || lost) return;
+    if (!text || !personaId || loading || (!isCoach && lost)) return;
 
+    const gen = sessionGenRef.current;
     const nextMessages: ChatMessage[] = [...messages, { role: "user", content: text }];
     setMessages(nextMessages);
     setInput("");
@@ -225,6 +242,8 @@ export default function ChatPage() {
       messages: nextMessages,
     });
 
+    if (gen !== sessionGenRef.current) return;
+
     setLoading(false);
 
     if (!data?.reply) return;
@@ -236,9 +255,13 @@ export default function ChatPage() {
     ]);
     if (typeof data.interest === "number") setInterest(data.interest);
     if (data.mood) setMood(data.mood);
+    if (data.verdict) setVerdict(data.verdict);
     if (data.won) setWon(true);
     if (data.lost) setLost(true);
-    void playPersonaLine(data.reply, assistantIndex);
+
+    if (persona?.ttsEnabled !== false) {
+      void playPersonaLine(data.reply, assistantIndex, personaId);
+    }
   };
 
   const onComposerKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
@@ -250,6 +273,7 @@ export default function ChatPage() {
 
   const showGateOverlay = !gateReady || !chatUnlocked;
   const pageInteractive = gateReady && chatUnlocked;
+  const showPicker = pageInteractive && !personaId;
 
   return (
     <>
@@ -278,19 +302,13 @@ export default function ChatPage() {
 
         <header className="chat-header">
           <p className="chat-eyebrow">Joe&apos;s Casino · VIP Lounge</p>
-          <h1 className="chat-title">{persona?.name ?? "VIP Lounge"}</h1>
-          {!personaId ? (
-            <p className="chat-sub">Pick who you want to take home tonight.</p>
-          ) : persona ? (
-            <p className="chat-sub">
-              {persona.label} · {persona.tagline}
-            </p>
-          ) : null}
+          <h1 className="chat-title">
+            {showPicker ? "Who do you want to talk to?" : persona?.name}
+          </h1>
         </header>
 
-        {!personaId ? (
+        {showPicker ? (
           <main className="chat-picker">
-            <p className="chat-picker-lead">Who are you talking to?</p>
             <div className="chat-persona-grid">
               {(Object.keys(CHAT_PERSONAS) as ChatPersonaId[]).map((id) => {
                 const p = CHAT_PERSONAS[id];
@@ -307,53 +325,78 @@ export default function ChatPage() {
                         src={p.portrait}
                         alt={p.name}
                         fill
-                        sizes="120px"
+                        sizes="200px"
                         className="chat-persona-thumb-img"
+                        priority
                       />
                     </span>
                     <span className="chat-persona-label">{p.name}</span>
-                    <span className="chat-persona-diff">{p.label}</span>
-                    <span className="chat-persona-tag">{p.tagline}</span>
                   </button>
                 );
               })}
             </div>
           </main>
-        ) : (
+        ) : persona ? (
           <main className="chat-main">
             <div className="chat-layout">
               <aside className="chat-avatar-panel">
+                <button type="button" className="chat-back-picker" onClick={backToPicker}>
+                  &larr; Switch
+                </button>
                 <div
-                  className={`chat-avatar-photo${speaking || loading ? " chat-avatar-photo--speaking" : ""} chat-avatar-photo--${mood}`}
+                  className={`chat-avatar-photo${
+                    !isCoach && (speaking || loading) ? " chat-avatar-photo--speaking" : ""
+                  }${
+                    !isCoach
+                      ? ` chat-avatar-photo--${mood}`
+                      : verdict
+                        ? ` chat-avatar-photo--verdict-${verdict}`
+                        : ""
+                  }`}
                 >
                   <Image
-                    src={persona?.portrait ?? "/chat/kacey-portrait.png"}
-                    alt={`${persona?.name ?? "Kacey"} in the VIP lounge`}
+                    src={persona.portrait}
+                    alt={persona.name}
                     fill
                     sizes="(max-width: 900px) 100vw, 340px"
-                    className="chat-avatar-photo-img"
+                    className={`chat-avatar-photo-img${
+                      personaId === "dan" ? " chat-avatar-photo-img--dan" : ""
+                    }${personaId === "better-joe" ? " chat-avatar-photo-img--better-joe" : ""}`}
                     priority
                   />
                   <div className="chat-avatar-photo-vignette" aria-hidden="true" />
                 </div>
-                <div className="chat-meter">
-                  <div className="chat-meter-head">
-                    <span>Attraction</span>
-                    <span>{clampInterest(interest)}%</span>
+                {isCoach ? (
+                  <div className="chat-meter chat-meter--verdict">
+                    <div className="chat-meter-head">
+                      <span>Verdict</span>
+                    </div>
+                    <p className={`chat-verdict chat-verdict--${verdict ?? "marginal"}`}>
+                      {verdict ? verdictLabel(verdict) : "\u00a0"}
+                    </p>
                   </div>
-                  <div className="chat-meter-track" aria-hidden="true">
-                    <div
-                      className="chat-meter-fill"
-                      style={{ width: `${clampInterest(interest)}%` }}
-                    />
-                  </div>
-                  <p className="chat-mood">{moodLabel(mood)}</p>
-                </div>
-                {won && persona ? (
-                  <p className="chat-banner chat-banner--win">{winBanner(persona)}</p>
-                ) : lost && persona ? (
-                  <p className="chat-banner chat-banner--lose">{loseBanner(persona)}</p>
-                ) : null}
+                ) : (
+                  <>
+                    <div className="chat-meter">
+                      <div className="chat-meter-head">
+                        <span>Attraction</span>
+                        <span>{clampInterest(interest)}%</span>
+                      </div>
+                      <div className="chat-meter-track" aria-hidden="true">
+                        <div
+                          className="chat-meter-fill"
+                          style={{ width: `${clampInterest(interest)}%` }}
+                        />
+                      </div>
+                      <p className="chat-mood">{moodLabel(mood)}</p>
+                    </div>
+                    {won ? (
+                      <p className="chat-banner chat-banner--win">{winBanner(persona)}</p>
+                    ) : lost ? (
+                      <p className="chat-banner chat-banner--lose">{loseBanner(persona)}</p>
+                    ) : null}
+                  </>
+                )}
               </aside>
 
               <section className="chat-panel">
@@ -389,11 +432,6 @@ export default function ChatPage() {
                   <textarea
                     className="chat-input"
                     rows={2}
-                    placeholder={
-                      persona
-                        ? composerPlaceholder(persona, won, lost)
-                        : "Flirt. Build tension. Close the deal…"
-                    }
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
                     onKeyDown={onComposerKeyDown}
@@ -411,7 +449,7 @@ export default function ChatPage() {
               </section>
             </div>
           </main>
-        )}
+        ) : null}
       </div>
 
       {showGateOverlay ? (

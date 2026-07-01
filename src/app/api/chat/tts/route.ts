@@ -8,7 +8,7 @@ export const runtime = "nodejs";
 
 const bodySchema = z.object({
   text: z.string().min(1).max(1200),
-  personaId: z.enum(["easy", "hard"]).optional(),
+  personaId: z.enum(["kacey", "dan", "better-joe"]).optional(),
 });
 
 const TTS_MODEL =

@@ -65,7 +65,7 @@ export function buildPersonaTtsPrompt(
   transcript: string,
   voiceName: string
 ): string {
-  if (personaId === "hard") {
+  if (personaId === "better-joe") {
     return buildBetterJoeTtsPrompt(transcript, voiceName);
   }
   return buildKaceyTtsPrompt(transcript, voiceName);
