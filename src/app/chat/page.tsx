@@ -11,11 +11,12 @@ import {
   type KeyboardEvent,
 } from "react";
 import {
+  CHAT_PERSONAS,
   clampInterest,
-  KACEY,
-  KACEY_PERSONA,
   moodLabel,
   type ChatMood,
+  type ChatPersona,
+  type ChatPersonaId,
 } from "@/lib/chatPersonas";
 import { stripAudioTags } from "@/lib/audioTags";
 import { speakSofia, stopSofiaSpeech } from "@/lib/sofiaSpeech";
@@ -34,15 +35,44 @@ type ChatApiResponse = {
   error?: string;
 };
 
+function winBanner(persona: ChatPersona): string {
+  return persona.subjectPronoun === "he"
+    ? "He's coming home with you. You win."
+    : "She's coming home with you. You win.";
+}
+
+function loseBanner(persona: ChatPersona): string {
+  return persona.subjectPronoun === "he"
+    ? "He's not going home with you tonight."
+    : "She's not going home with you tonight.";
+}
+
+function composerPlaceholder(persona: ChatPersona, won: boolean, lost: boolean): string {
+  if (won) {
+    return persona.subjectPronoun === "he"
+      ? "He said yes — keep the night going…"
+      : "She said yes — keep the night going…";
+  }
+  if (lost) {
+    return persona.subjectPronoun === "he"
+      ? "He shut it down for tonight…"
+      : "She shut it down for tonight…";
+  }
+  if (persona.id === "hard") {
+    return "Talk poker. Trash-talk. Flirt. Close the deal…";
+  }
+  return "Flirt. Build tension. Close the deal…";
+}
+
 export default function ChatPage() {
   const [gateReady, setGateReady] = useState(false);
   const [chatUnlocked, setChatUnlocked] = useState(false);
   const [gatePw, setGatePw] = useState("");
   const [gateError, setGateError] = useState("");
 
-  const [chatStarted, setChatStarted] = useState(false);
+  const [personaId, setPersonaId] = useState<ChatPersonaId | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [interest, setInterest] = useState(KACEY_PERSONA.startInterest);
+  const [interest, setInterest] = useState(0);
   const [mood, setMood] = useState<ChatMood>("curious");
   const [won, setWon] = useState(false);
   const [lost, setLost] = useState(false);
@@ -58,7 +88,13 @@ export default function ChatPage() {
 
   const threadRef = useRef<HTMLDivElement>(null);
   const cancelSpeechRef = useRef<(() => void) | null>(null);
-  const openingStartedRef = useRef(false);
+  const personaIdRef = useRef<ChatPersonaId | null>(null);
+
+  const persona = personaId ? CHAT_PERSONAS[personaId] : null;
+
+  useEffect(() => {
+    personaIdRef.current = personaId;
+  }, [personaId]);
 
   useEffect(() => {
     try {
@@ -76,11 +112,14 @@ export default function ChatPage() {
     };
   }, []);
 
-  const playKaceyLine = useCallback(async (line: string, messageIndex: number) => {
+  const playPersonaLine = useCallback(async (line: string, messageIndex: number) => {
+    const id = personaIdRef.current;
+    if (!id) return;
+
     cancelSpeechRef.current?.();
     setSpeakingReveal({ messageIndex, text: "" });
     cancelSpeechRef.current = await speakSofia(line, {
-      personaId: "easy",
+      personaId: id,
       onStart: () => setSpeaking(true),
       onReveal: (text) => setSpeakingReveal({ messageIndex, text }),
       onEnd: () => {
@@ -115,6 +154,7 @@ export default function ChatPage() {
 
   const callChat = useCallback(
     async (payload: {
+      personaId: ChatPersonaId;
       interest: number;
       messages: ChatMessage[];
       opening?: boolean;
@@ -122,7 +162,7 @@ export default function ChatPage() {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ personaId: "easy", ...payload }),
+        body: JSON.stringify(payload),
       });
       const data = (await res.json()) as ChatApiResponse;
       if (!res.ok) {
@@ -134,46 +174,44 @@ export default function ChatPage() {
     []
   );
 
-  const startChat = useCallback(async () => {
-    if (openingStartedRef.current) return;
-    openingStartedRef.current = true;
-    setChatStarted(true);
-    setMessages([]);
-    setInterest(KACEY_PERSONA.startInterest);
-    setMood("curious");
-    setWon(false);
-    setLost(false);
-    setError("");
-    setBootstrapping(true);
-    setLoading(true);
+  const startPersona = useCallback(
+    async (id: ChatPersonaId) => {
+      const p = CHAT_PERSONAS[id];
+      setPersonaId(id);
+      setMessages([]);
+      setInterest(p.startInterest);
+      setMood("curious");
+      setWon(false);
+      setLost(false);
+      setError("");
+      setBootstrapping(true);
+      setLoading(true);
 
-    const data = await callChat({
-      interest: KACEY_PERSONA.startInterest,
-      messages: [],
-      opening: true,
-    });
+      const data = await callChat({
+        personaId: id,
+        interest: p.startInterest,
+        messages: [],
+        opening: true,
+      });
 
-    setLoading(false);
-    setBootstrapping(false);
+      setLoading(false);
+      setBootstrapping(false);
 
-    if (!data?.reply) return;
+      if (!data?.reply) return;
 
-    setMessages([{ role: "assistant", content: stripAudioTags(data.reply) }]);
-    if (typeof data.interest === "number") setInterest(data.interest);
-    if (data.mood) setMood(data.mood);
-    if (data.won) setWon(true);
-    if (data.lost) setLost(true);
-    void playKaceyLine(data.reply, 0);
-  }, [callChat, playKaceyLine]);
-
-  useEffect(() => {
-    if (!gateReady || !chatUnlocked) return;
-    void startChat();
-  }, [gateReady, chatUnlocked, startChat]);
+      setMessages([{ role: "assistant", content: stripAudioTags(data.reply) }]);
+      if (typeof data.interest === "number") setInterest(data.interest);
+      if (data.mood) setMood(data.mood);
+      if (data.won) setWon(true);
+      if (data.lost) setLost(true);
+      void playPersonaLine(data.reply, 0);
+    },
+    [callChat, playPersonaLine]
+  );
 
   const sendUserMessage = async () => {
     const text = input.trim();
-    if (!text || !chatStarted || loading || won || lost) return;
+    if (!text || !personaId || loading || won || lost) return;
 
     const nextMessages: ChatMessage[] = [...messages, { role: "user", content: text }];
     setMessages(nextMessages);
@@ -182,6 +220,7 @@ export default function ChatPage() {
     setLoading(true);
 
     const data = await callChat({
+      personaId,
       interest,
       messages: nextMessages,
     });
@@ -199,7 +238,7 @@ export default function ChatPage() {
     if (data.mood) setMood(data.mood);
     if (data.won) setWon(true);
     if (data.lost) setLost(true);
-    void playKaceyLine(data.reply, assistantIndex);
+    void playPersonaLine(data.reply, assistantIndex);
   };
 
   const onComposerKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
@@ -239,106 +278,140 @@ export default function ChatPage() {
 
         <header className="chat-header">
           <p className="chat-eyebrow">Joe&apos;s Casino · VIP Lounge</p>
-          <h1 className="chat-title">Kacey</h1>
+          <h1 className="chat-title">{persona?.name ?? "VIP Lounge"}</h1>
+          {!personaId ? (
+            <p className="chat-sub">Pick who you want to take home tonight.</p>
+          ) : persona ? (
+            <p className="chat-sub">
+              {persona.label} · {persona.tagline}
+            </p>
+          ) : null}
         </header>
 
-        <main className="chat-main">
-          <div className="chat-layout">
-            <aside className="chat-avatar-panel">
-              <div
-                className={`chat-avatar-photo${speaking || loading ? " chat-avatar-photo--speaking" : ""} chat-avatar-photo--${mood}`}
-              >
-                <Image
-                  src={KACEY.portrait}
-                  alt="Kacey in the VIP lounge"
-                  fill
-                  sizes="(max-width: 900px) 100vw, 340px"
-                  className="chat-avatar-photo-img"
-                  priority
-                />
-                <div className="chat-avatar-photo-vignette" aria-hidden="true" />
-              </div>
-              <div className="chat-meter">
-                <div className="chat-meter-head">
-                  <span>Attraction</span>
-                  <span>{clampInterest(interest)}%</span>
-                </div>
-                <div className="chat-meter-track" aria-hidden="true">
-                  <div
-                    className="chat-meter-fill"
-                    style={{ width: `${clampInterest(interest)}%` }}
-                  />
-                </div>
-                <p className="chat-mood">{moodLabel(mood)}</p>
-              </div>
-              {won ? (
-                <p className="chat-banner chat-banner--win">
-                  She&apos;s coming home with you. You win.
-                </p>
-              ) : lost ? (
-                <p className="chat-banner chat-banner--lose">
-                  She&apos;s not going home with you tonight.
-                </p>
-              ) : null}
-            </aside>
-
-            <section className="chat-panel">
-              <div className="chat-thread" ref={threadRef}>
-                {messages.map((m, i) => {
-                  const isRevealing =
-                    m.role === "assistant" && speakingReveal?.messageIndex === i;
-                  const displayText = isRevealing ? speakingReveal.text : m.content;
-                  const showCursor = isRevealing && speaking;
-
-                  return (
-                    <div
-                      key={`${i}-${m.role}`}
-                      className={`chat-bubble chat-bubble--${m.role}${showCursor ? " chat-bubble--revealing" : ""}`}
-                    >
-                      {displayText}
-                      {showCursor ? (
-                        <span className="chat-reveal-cursor" aria-hidden="true" />
-                      ) : null}
-                    </div>
-                  );
-                })}
-                {loading ? (
-                  <div className="chat-bubble chat-bubble--assistant chat-bubble--typing">
-                    …
-                  </div>
-                ) : null}
-              </div>
-
-              {error ? <p className="chat-error">{error}</p> : null}
-
-              <div className="chat-composer">
-                <textarea
-                  className="chat-input"
-                  rows={2}
-                  placeholder={
-                    won
-                      ? "She said yes — keep the night going…"
-                      : lost
-                        ? "She shut it down for tonight…"
-                        : "Flirt. Build tension. Close the deal…"
-                  }
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={onComposerKeyDown}
-                  disabled={loading || bootstrapping}
-                />
-                <button
-                  type="button"
-                  className="modal-btn modal-btn-submit chat-send"
-                  disabled={loading || bootstrapping || !input.trim()}
-                  onClick={() => void sendUserMessage()}
+        {!personaId ? (
+          <main className="chat-picker">
+            <p className="chat-picker-lead">Who are you talking to?</p>
+            <div className="chat-persona-grid">
+              {(Object.keys(CHAT_PERSONAS) as ChatPersonaId[]).map((id) => {
+                const p = CHAT_PERSONAS[id];
+                return (
+                  <button
+                    key={id}
+                    type="button"
+                    className="chat-persona-card"
+                    disabled={bootstrapping}
+                    onClick={() => void startPersona(id)}
+                  >
+                    <span className="chat-persona-thumb">
+                      <Image
+                        src={p.portrait}
+                        alt={p.name}
+                        fill
+                        sizes="120px"
+                        className="chat-persona-thumb-img"
+                      />
+                    </span>
+                    <span className="chat-persona-label">{p.name}</span>
+                    <span className="chat-persona-diff">{p.label}</span>
+                    <span className="chat-persona-tag">{p.tagline}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </main>
+        ) : (
+          <main className="chat-main">
+            <div className="chat-layout">
+              <aside className="chat-avatar-panel">
+                <div
+                  className={`chat-avatar-photo${speaking || loading ? " chat-avatar-photo--speaking" : ""} chat-avatar-photo--${mood}`}
                 >
-                  Send
-                </button>
-              </div>
-            </section>
-          </div>
-        </main>
+                  <Image
+                    src={persona?.portrait ?? "/chat/kacey-portrait.png"}
+                    alt={`${persona?.name ?? "Kacey"} in the VIP lounge`}
+                    fill
+                    sizes="(max-width: 900px) 100vw, 340px"
+                    className="chat-avatar-photo-img"
+                    priority
+                  />
+                  <div className="chat-avatar-photo-vignette" aria-hidden="true" />
+                </div>
+                <div className="chat-meter">
+                  <div className="chat-meter-head">
+                    <span>Attraction</span>
+                    <span>{clampInterest(interest)}%</span>
+                  </div>
+                  <div className="chat-meter-track" aria-hidden="true">
+                    <div
+                      className="chat-meter-fill"
+                      style={{ width: `${clampInterest(interest)}%` }}
+                    />
+                  </div>
+                  <p className="chat-mood">{moodLabel(mood)}</p>
+                </div>
+                {won && persona ? (
+                  <p className="chat-banner chat-banner--win">{winBanner(persona)}</p>
+                ) : lost && persona ? (
+                  <p className="chat-banner chat-banner--lose">{loseBanner(persona)}</p>
+                ) : null}
+              </aside>
+
+              <section className="chat-panel">
+                <div className="chat-thread" ref={threadRef}>
+                  {messages.map((m, i) => {
+                    const isRevealing =
+                      m.role === "assistant" && speakingReveal?.messageIndex === i;
+                    const displayText = isRevealing ? speakingReveal.text : m.content;
+                    const showCursor = isRevealing && speaking;
+
+                    return (
+                      <div
+                        key={`${i}-${m.role}`}
+                        className={`chat-bubble chat-bubble--${m.role}${showCursor ? " chat-bubble--revealing" : ""}`}
+                      >
+                        {displayText}
+                        {showCursor ? (
+                          <span className="chat-reveal-cursor" aria-hidden="true" />
+                        ) : null}
+                      </div>
+                    );
+                  })}
+                  {loading ? (
+                    <div className="chat-bubble chat-bubble--assistant chat-bubble--typing">
+                      …
+                    </div>
+                  ) : null}
+                </div>
+
+                {error ? <p className="chat-error">{error}</p> : null}
+
+                <div className="chat-composer">
+                  <textarea
+                    className="chat-input"
+                    rows={2}
+                    placeholder={
+                      persona
+                        ? composerPlaceholder(persona, won, lost)
+                        : "Flirt. Build tension. Close the deal…"
+                    }
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    onKeyDown={onComposerKeyDown}
+                    disabled={loading || bootstrapping}
+                  />
+                  <button
+                    type="button"
+                    className="modal-btn modal-btn-submit chat-send"
+                    disabled={loading || bootstrapping || !input.trim()}
+                    onClick={() => void sendUserMessage()}
+                  >
+                    Send
+                  </button>
+                </div>
+              </section>
+            </div>
+          </main>
+        )}
       </div>
 
       {showGateOverlay ? (

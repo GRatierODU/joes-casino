@@ -24,7 +24,7 @@ const messageSchema = z.object({
 });
 
 const bodySchema = z.object({
-  personaId: z.enum(["easy"]).optional(),
+  personaId: z.enum(["easy", "hard"]).optional(),
   interest: z.number().min(0).max(100),
   messages: z.array(messageSchema).max(80),
   opening: z.boolean().optional(),
@@ -88,7 +88,7 @@ export async function POST(request: Request) {
       model,
       system: `${persona.systemPrompt}
 
-Current attraction (0–100): ${priorInterest}. If attraction is at or above ${persona.winThreshold}, ${persona.name} agrees to leave with the player and go home together tonight (say yes in character—suggestive, not graphic). Below that, she keeps flirting or holding back depending on persona.
+Current attraction (0–100): ${priorInterest}. If attraction is at or above ${persona.winThreshold}, ${persona.name} agrees to leave with the player and go home together tonight (say yes in character—suggestive, not graphic). Below that, ${persona.subjectPronoun === "he" ? "he" : "she"} keeps flirting, deflecting, or holding back depending on persona.
 Return structured output only.`,
       messages: modelMessages,
       output: Output.object({ schema: replySchema }),
