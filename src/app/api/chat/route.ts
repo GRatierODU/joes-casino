@@ -148,6 +148,8 @@ export async function POST(request: Request) {
       system: `${persona.systemPrompt}
 
 Current attraction (0–100): ${priorInterest}. If attraction is at or above ${persona.winThreshold}, ${persona.name} agrees to leave with the player and go home together tonight (say yes in character—suggestive, not graphic). Below that, ${persona.subjectPronoun === "he" ? "he" : "she"} keeps flirting, deflecting, or holding back depending on persona.
+
+Scoring reminder: Each character needs a DIFFERENT approach. Judge the player's latest message only against what ${persona.name} actually likes — not generic flirting. Wrong-topic charm gets 0 or negative interestDelta. Right-topic appeal gets meaningful positive interestDelta.
 Return structured output only.`,
       messages: modelMessages,
       output: Output.object({ schema: seductionReplySchema }),

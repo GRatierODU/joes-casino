@@ -50,6 +50,23 @@ function loseBanner(persona: ChatPersona): string {
     : "She's not going home with you tonight.";
 }
 
+function composerPlaceholder(persona: ChatPersona, won: boolean, lost: boolean): string {
+  if (persona.mode === "coach") {
+    return "Describe the hand — position, stack, action…";
+  }
+  if (won) {
+    return persona.subjectPronoun === "he"
+      ? "He said yes — keep the night going…"
+      : "She said yes — keep the night going…";
+  }
+  if (lost) {
+    return persona.subjectPronoun === "he"
+      ? "He shut it down for tonight…"
+      : "She shut it down for tonight…";
+  }
+  return persona.approachHint;
+}
+
 export default function ChatPage() {
   const [gateReady, setGateReady] = useState(false);
   const [chatUnlocked, setChatUnlocked] = useState(false);
@@ -340,6 +357,11 @@ export default function ChatPage() {
           <h1 className="chat-title">
             {showPicker ? "Who do you want to talk to?" : persona?.name}
           </h1>
+          {!showPicker && persona ? (
+            <p className="chat-sub">{persona.approachHint}</p>
+          ) : showPicker ? (
+            <p className="chat-sub">Each character wants something different — read the card.</p>
+          ) : null}
         </header>
 
         {showPicker ? (
@@ -366,6 +388,7 @@ export default function ChatPage() {
                       />
                     </span>
                     <span className="chat-persona-label">{p.name}</span>
+                    <span className="chat-persona-tag">{p.tagline}</span>
                   </button>
                 );
               })}
@@ -469,6 +492,9 @@ export default function ChatPage() {
                   <textarea
                     className="chat-input"
                     rows={2}
+                    placeholder={
+                      persona ? composerPlaceholder(persona, won, lost) : "Say something…"
+                    }
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
                     onKeyDown={onComposerKeyDown}
