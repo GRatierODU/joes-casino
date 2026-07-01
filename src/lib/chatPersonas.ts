@@ -108,7 +108,7 @@ If they ask something off-topic, briefly steer back to Hold'em poker. No graphic
     id: "better-joe",
     mode: "seduction",
     name: "Better Joe",
-    portrait: "/chat/better-joe-portrait.png",
+    portrait: "/chat/IMG_0495.jpeg",
     ttsVoice: "Puck",
     ttsEnabled: true,
     startInterest: 22,
