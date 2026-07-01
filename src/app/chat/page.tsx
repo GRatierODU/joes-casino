@@ -157,27 +157,42 @@ export default function ChatPage() {
       messages: ChatMessage[];
       opening?: boolean;
     }): Promise<ChatApiResponse | null> => {
-      const res = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      const data = (await res.json()) as ChatApiResponse;
-      if (!res.ok) {
-        setError(data.error || "Something went wrong.");
+      const controller = new AbortController();
+      const timeoutId = window.setTimeout(() => controller.abort(), 45000);
+
+      try {
+        const res = await fetch("/api/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+          signal: controller.signal,
+        });
+        const data = (await res.json()) as ChatApiResponse;
+        if (!res.ok) {
+          setError(data.error || "Something went wrong.");
+          return null;
+        }
+        return data;
+      } catch (e) {
+        if (e instanceof DOMException && e.name === "AbortError") {
+          setError("Chat timed out. Try again.");
+        } else {
+          setError("Could not reach the lounge. Try again.");
+        }
         return null;
+      } finally {
+        window.clearTimeout(timeoutId);
       }
-      return data;
     },
     []
   );
 
   const startPersona = useCallback(
     async (id: ChatPersonaId) => {
+      resetSession();
       const gen = sessionGenRef.current;
       const p = CHAT_PERSONAS[id];
 
-      resetSession();
       setPersonaId(id);
       setMessages([]);
       setInterest(p.startInterest);
@@ -192,26 +207,33 @@ export default function ChatPage() {
       setBootstrapping(true);
       setLoading(true);
 
-      const data = await callChat({
-        personaId: id,
-        interest: p.startInterest,
-        messages: [],
-        opening: true,
-      });
+      try {
+        const data = await callChat({
+          personaId: id,
+          interest: p.startInterest,
+          messages: [],
+          opening: true,
+        });
 
-      if (gen !== sessionGenRef.current) return;
+        if (gen !== sessionGenRef.current) return;
 
-      setLoading(false);
-      setBootstrapping(false);
+        if (!data?.reply) {
+          setError("Character didn't respond. Try again.");
+          return;
+        }
 
-      if (!data?.reply) return;
-
-      setMessages([{ role: "assistant", content: stripAudioTags(data.reply) }]);
-      if (typeof data.interest === "number") setInterest(data.interest);
-      if (data.mood) setMood(data.mood);
-      if (data.won) setWon(true);
-      if (data.lost) setLost(true);
-      void playPersonaLine(data.reply, 0, id);
+        setMessages([{ role: "assistant", content: stripAudioTags(data.reply) }]);
+        if (typeof data.interest === "number") setInterest(data.interest);
+        if (data.mood) setMood(data.mood);
+        if (data.won) setWon(true);
+        if (data.lost) setLost(true);
+        void playPersonaLine(data.reply, 0, id);
+      } finally {
+        if (gen === sessionGenRef.current) {
+          setLoading(false);
+          setBootstrapping(false);
+        }
+      }
     },
     [callChat, playPersonaLine, resetSession]
   );
@@ -236,31 +258,35 @@ export default function ChatPage() {
     setError("");
     setLoading(true);
 
-    const data = await callChat({
-      personaId,
-      interest,
-      messages: nextMessages,
-    });
+    try {
+      const data = await callChat({
+        personaId,
+        interest,
+        messages: nextMessages,
+      });
 
-    if (gen !== sessionGenRef.current) return;
+      if (gen !== sessionGenRef.current) return;
 
-    setLoading(false);
+      if (!data?.reply) return;
 
-    if (!data?.reply) return;
+      const assistantIndex = nextMessages.length;
+      setMessages((prev) => [
+        ...prev,
+        { role: "assistant", content: stripAudioTags(data.reply!) },
+      ]);
+      if (typeof data.interest === "number") setInterest(data.interest);
+      if (data.mood) setMood(data.mood);
+      if (data.verdict) setVerdict(data.verdict);
+      if (data.won) setWon(true);
+      if (data.lost) setLost(true);
 
-    const assistantIndex = nextMessages.length;
-    setMessages((prev) => [
-      ...prev,
-      { role: "assistant", content: stripAudioTags(data.reply!) },
-    ]);
-    if (typeof data.interest === "number") setInterest(data.interest);
-    if (data.mood) setMood(data.mood);
-    if (data.verdict) setVerdict(data.verdict);
-    if (data.won) setWon(true);
-    if (data.lost) setLost(true);
-
-    if (persona?.ttsEnabled !== false) {
-      void playPersonaLine(data.reply, assistantIndex, personaId);
+      if (persona?.ttsEnabled !== false) {
+        void playPersonaLine(data.reply, assistantIndex, personaId);
+      }
+    } finally {
+      if (gen === sessionGenRef.current) {
+        setLoading(false);
+      }
     }
   };
 

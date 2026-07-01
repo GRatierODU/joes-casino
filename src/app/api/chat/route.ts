@@ -11,6 +11,7 @@ import {
 } from "@/lib/chatPersonas";
 
 export const runtime = "nodejs";
+export const maxDuration = 30;
 
 const GEMINI_SAFETY_SETTINGS = [
   { category: "HARM_CATEGORY_HARASSMENT" as const, threshold: "BLOCK_ONLY_HIGH" as const },
@@ -53,7 +54,7 @@ function getModel() {
     );
   }
   const google = createGoogleGenerativeAI({ apiKey });
-  return google(process.env.GEMINI_CHAT_MODEL?.trim() || "gemini-2.5-flash");
+  return google(process.env.GEMINI_CHAT_MODEL?.trim() || "gemini-2.0-flash");
 }
 
 export async function POST(request: Request) {
@@ -88,6 +89,7 @@ export async function POST(request: Request) {
         model,
         system: `${persona.systemPrompt}\nReturn structured output only.`,
         messages: modelMessages,
+        maxOutputTokens: 256,
         output: Output.object({ schema: coachReplySchema }),
         providerOptions: {
           google: {
@@ -137,6 +139,7 @@ export async function POST(request: Request) {
 Current attraction (0–100): ${priorInterest}. If attraction is at or above ${persona.winThreshold}, ${persona.name} agrees to leave with the player and go home together tonight (say yes in character—suggestive, not graphic). Below that, ${persona.subjectPronoun === "he" ? "he" : "she"} keeps flirting, deflecting, or holding back depending on persona.
 Return structured output only.`,
       messages: modelMessages,
+      maxOutputTokens: 320,
       output: Output.object({ schema: seductionReplySchema(persona.maxInterestDelta) }),
       providerOptions: {
         google: {
